@@ -9,11 +9,10 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from torch.optim import Adam
 
-save_path = './models/dif_model.pth'
-os.makedirs('./models', exist_ok=True)
+save_path = '/content/drive/MyDrive/Jan2025_LAIL/models/dif_model.pth'
+os.makedirs('/content/drive/MyDrive/Jan2025_LAIL/models', exist_ok=True)
 data, data_loader, test_Dloader = prep.get_and_load_dataset()
     
-
 
 
 class Trainer:

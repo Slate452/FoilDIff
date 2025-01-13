@@ -66,6 +66,53 @@ class TransformerEncoderSA(nn.Module):
         attention_value = self.ff_self(attention_value) + attention_value
         return attention_value.permute(0, 2, 1).view(-1, self.num_channels, self.size, self.size)
 
+class TransformerEncoderCA(nn.Module):
+    def __init__(self, num_channels: int, size: int, num_heads: int = 4):
+        super(TransformerEncoderCA, self).__init__()
+        self.num_channels = num_channels
+        self.size = size
+        
+        # Cross-Attention: Query from x, Key/Value from context
+        self.mha = nn.MultiheadAttention(embed_dim=num_channels, num_heads=num_heads, batch_first=True)
+        
+        # Layer Normalization
+        self.ln_x = nn.LayerNorm([num_channels])
+        self.ln_context = nn.LayerNorm([num_channels])
+        
+        # Feedforward Network
+        self.ff_cross = nn.Sequential(
+            nn.LayerNorm([num_channels]),
+            nn.Linear(num_channels, num_channels),
+            nn.LayerNorm([num_channels]),
+            nn.Linear(num_channels, num_channels)
+        )
+
+    def forward(self, x: torch.Tensor, context: torch.Tensor) -> torch.Tensor:
+        """
+        x: Target input tensor (queries) -> Shape: [batch, num_channels, H, W]
+        context: Conditioning input tensor (keys & values) -> Shape: [batch, num_channels, H, W]
+        """
+        # Reshape & Permute: [batch, num_channels, H*W] -> [batch, H*W, num_channels]
+        x = x.view(-1, self.num_channels, self.size * self.size).permute(0, 2, 1)
+        context = context.view(-1, self.num_channels, self.size * self.size).permute(0, 2, 1)
+        
+        # Apply Layer Normalization
+        x_ln = self.ln_x(x)
+        context_ln = self.ln_context(context)
+        
+        # Cross-Attention: Query from x, Key & Value from context
+        attention_value, _ = self.mha(query=x_ln, key=context_ln, value=context_ln)
+        
+        # Add Residual Connection
+        attention_value = attention_value + x
+        
+        # Feedforward Layer & Residual Connection
+        attention_value = self.ff_cross(attention_value) + attention_value
+        
+        # Reshape Back: [batch, H*W, num_channels] -> [batch, num_channels, H, W]
+        return attention_value.permute(0, 2, 1).view(-1, self.num_channels, self.size, self.size)
+
+
 class conv_block(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
@@ -133,6 +180,10 @@ class build_unet(nn.Module):
         self.attn1 =TransformerEncoderSA(64, 64)
         self.attn2 = TransformerEncoderSA(128, 32)
         self.attn3 = TransformerEncoderSA(256, 16)
+
+        self.Cross_attn1 =TransformerEncoderCA(64, 64)
+        self.Cross_attn2 = TransformerEncoderCA(128, 32)
+        self.Cross_attn3 = TransformerEncoderCA(256, 16)
         self.te1 = embed_time(64)
         self.te2 = embed_time(128)
         self.te3 = embed_time(256)

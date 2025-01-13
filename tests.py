@@ -26,23 +26,11 @@ def get_single_input():
     i = data[0].unsqueeze(0)
     i.to(device)
     print(i.shape)
+    Finput = i[:, :3, :, :]  # First 3 channels
+
+    #Fpred = batch[:, 3:, :, :]  # Remaining 3 channels
     #prep.plot(i)
-    return i
-
-def time_embeding()-> None:
-    img,t = get_single_input()
-    enc = unet.PositionalEncoding(embedding_dim=256, max_len=1000)
-    embeder = unet.embed_time(6)
-    t_enc = enc(t)
-    embeder(img,t_enc,r =True)
-    
-def Run_net()-> None:
-    #Test unet 
-    inputs, t = get_single_input()
-    model = unet.build_unet()
-    y = model(inputs,t)
-    prep.plot(y)
-
+    return Finput
 
 def Train() :   
     diffuser = diff.Diffuser(timesteps=300, device="cuda")  # Adjust timesteps and device as needed
@@ -63,6 +51,18 @@ def load_model(model_path=save_path, device=device):
     model.eval()  # Set the model to evaluation mode
     print(f"Model loaded from {model_path}")
     return model, optimizer
+
+def sample_diffusion(model,inputs,num_sample=100):
+    model.eval();model.to(device);predictions=[]
+    batch_size=25;N_all=num_sample
+    diffuser = diff.Diffuser(timesteps=300, device="cuda")  # Adjust timesteps and device as needed
+    while N_all>0:
+        batch_size_now=min(batch_size,N_all)
+        N_all-=batch_size
+        prediction_batch=diffuser.sample_from_noise(model,inputs.to(device).repeat(batch_size_now,1,1,1),show_progress=False,ddim = True)
+        predictions.append(prediction_batch.detach().cpu().numpy())
+    predictions=np.concatenate(predictions,axis=0)
+    return np.mean(predictions,axis=0),np.std(predictions,axis=0),predictions
 
 def test_sample(device = device):
     Done = False

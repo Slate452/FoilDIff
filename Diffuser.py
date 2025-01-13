@@ -101,12 +101,14 @@ class Diffuser:
             noise = eta * torch.randn_like(x)
             return mean + noise
 
-    def sample_from_noise(self, model, condition, sampler=None, eta=0.0):
+    def sample_from_noise(self, model, condition, Tech="ddpm", eta=0.0):
         """
-        Generates a sample from noise using the reverse diffusion process.
+        Generates a sample from noise using the one of the two sample processes.
         """
-        if sampler is None:
+        if Tech =="ddpm":
             sampler = self.ddpm_sample_timestep
+        else:
+            sampler = self.ddim_sample_timestep
         
         condition_shape = condition.shape
         batch_size= condition.size(0)
