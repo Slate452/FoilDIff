@@ -22,7 +22,7 @@ def read_file_to_list(file_path):
     return lines
 
 
-def get_data_files(img_dir ="./data/data",test_file = './data/Test.txt', train_file = './data/Train.txt', Trainingsplit = 0.7):
+def get_data_files(img_dir ="./datasets/data",test_file = './datasets/Test.txt', train_file = './datasets/Train.txt', Trainingsplit = 0.7):
         #Check if training and test list of files exist 
         train_list , test_list =[], []
         img_list  = os.listdir(img_dir)
@@ -65,11 +65,11 @@ def read_file_to_list(file_path):
         lines = [line.strip() for line in lines]
     return lines
 
-def get_data_files(img_dir ="./data/1_parameter/results",test_file = './data/1_parameter/test_cases.txt', train_file = './data/1_parameter/train_cases.txt', Trainingsplit = 0.7):
+def get_data_files(img_dir ="./datasets/1_parameter/results",test_file = './datasets/1_parameter/test_cases.txt', train_file = './datasets/1_parameter/train_cases.txt', Trainingsplit = 0.7):
         #Check if training and test list of files exist 
         train_list , test_list =[], []
         img_list  = os.listdir(img_dir)
-        if "train_cases.txt'" in os.listdir('./data'): 
+        if "train_cases.txt'" in os.listdir('./datasets/1_parameter/'): 
                 """find better variable or question """
                 test_list, train_list = read_file_to_list(test_file), read_file_to_list(train_file)
                 return train_list, test_list 
@@ -101,7 +101,7 @@ class NumpyDatasetFromFileList(Dataset):
         return tensor
 
 
-def get_and_load_dataset(img_dir = "./data/1_parameter/results"):
+def get_and_load_dataset(img_dir = "./datasets/1_parameter/results"):
         # Define transformations
         f_transforms = transforms.Compose([
                         transforms.Resize((IMG_SIZE, IMG_SIZE)),

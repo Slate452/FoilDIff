@@ -3,7 +3,6 @@ import os
 import process_data as prep
 from process_data import IMG_SIZE, BATCH_SIZE
 import Diffuser as diff
-from Diffuser import T
 import unet
 import torch
 import torch.nn.functional as F
@@ -26,10 +25,9 @@ epochs = 100 # Try more!
 def get_single_input():
     i = data[0].unsqueeze(0)
     i.to(device)
-    t = torch.randint(0, T, (BATCH_SIZE,), device=device).long()
     print(i.shape)
     #prep.plot(i)
-    return i, t
+    return i
 
 def time_embeding()-> None:
     img,t = get_single_input()
