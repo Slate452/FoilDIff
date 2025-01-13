@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from torch.optim import Adam
 
-save_path = '/content/drive/MyDrive/Jan2025_LAIL/models/dif_model.pth'
-os.makedirs('/content/drive/MyDrive/Jan2025_LAIL/models', exist_ok=True)
+save_path = './content/drive/MyDrive/Jan2025_LAIL/models/dif_model.pth'
+os.makedirs('./content/drive/MyDrive/Jan2025_LAIL/', exist_ok=True)
 data, data_loader, test_Dloader = prep.get_and_load_dataset()
     
 
@@ -26,7 +26,7 @@ class Trainer:
             data_loader: PyTorch DataLoader for training data.
             epochs: Number of epochs to train for.
             lr: Learning rate for the optimizer.
-            device: Device to train on ("cpu" or "cuda").
+            device: Device to train on ("cuda").
         """
         self.model = model.to(device)
         self.diffuser = diffuser
@@ -48,8 +48,6 @@ class Trainer:
             for step, batch in enumerate(data_loader):
                 # Move batch to device
                 batch = batch.to(self.device)
-                #Finput = batch[:, :3, :, :]  # First 3 channels
-                #Fpred = batch[:, 3:, :, :]  # Remaining 3 channels
                 # Randomly sample timesteps
                 t = torch.randint(0, self.diffuser.T, (batch.size(0),), device=self.device).long()
 
@@ -74,5 +72,5 @@ class Trainer:
             torch.save({
                     'model_state_dict': self.model.state_dict(),
                     'optimizer_state_dict': self.optimizer.state_dict(),
-                    }, save_path)
+                    }, save_path)      
             print(f"Model saved to {save_path}")

@@ -181,9 +181,8 @@ class build_unet(nn.Module):
         self.attn2 = TransformerEncoderSA(128, 32)
         self.attn3 = TransformerEncoderSA(256, 16)
 
-        self.Cross_attn1 =TransformerEncoderCA(64, 64)
-        self.Cross_attn2 = TransformerEncoderCA(128, 32)
-        self.Cross_attn3 = TransformerEncoderCA(256, 16)
+        #self.Cross_attn2 = TransformerEncoderCA(128, 32)
+        #self.Cross_attn3 = TransformerEncoderCA(256, 16)
         self.te1 = embed_time(64)
         self.te2 = embed_time(128)
         self.te3 = embed_time(256)

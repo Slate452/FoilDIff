@@ -50,7 +50,7 @@ def load_model(model_path=save_path, device=device):
 
     model.eval()  # Set the model to evaluation mode
     print(f"Model loaded from {model_path}")
-    return model, optimizer
+    return model
 
 def sample_diffusion(model,inputs,num_sample=100):
     model.eval();model.to(device);predictions=[]
