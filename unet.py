@@ -119,14 +119,14 @@ class UNetWithAttention(nn.Module):
         self.d3 = DecoderBlock(256, 128)
         self.d4 = DecoderBlock(128, 64)
 
-        self.teU1 = EmbedTime(256)
-        self.teU2 = EmbedTime(128)
-        self.teU3 = EmbedTime(64)
-        
+        self.teU1 = EmbedTime(512)
+        self.teU2 = EmbedTime(256)
+        self.teU3 = EmbedTime(128)
+        self.teU4 = EmbedTime(64)
 
-        self.attnU1 = TransformerEncoderSA(512)
-        self.attnU2 = TransformerEncoderSA(256)
-        self.attnU3 = TransformerEncoderSA(128)
+        self.attnU1 = TransformerEncoderSA(256)
+        self.attnU2 = TransformerEncoderSA(128)
+        self.attnU3 = TransformerEncoderSA(64)
 
         """ Classifier """
         self.outputs = nn.Conv2d(64, 6, kernel_size=1)
