@@ -69,12 +69,6 @@ class Trainer:
             
             # Log epoch loss
             print(f"Epoch {epoch+1}/{self.epochs}, Loss: {epoch_loss / len(self.data_loader)}")
-            torch.save({
-                    'model_state_dict': self.model.state_dict(),
-                    'optimizer_state_dict': self.optimizer.state_dict(),
-                    }, save_path)      
-            print(f"Model saved to {save_path}")
-
         print("Training complete.")
         return self.model
         
