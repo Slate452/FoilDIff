@@ -69,11 +69,12 @@ class Trainer:
             
             # Log epoch loss
             print(f"Epoch {epoch+1}/{self.epochs}, Loss: {epoch_loss / len(self.data_loader)}")
-       
-        if epoch > 1 and epoch % 5 == 0 and step == 0:
-            print(f"Epoch {epoch} | step {step:03d} Loss: {loss.item()} ")
-            torch.save({
+    
+        torch.save({
                     'model_state_dict': self.model.state_dict(),
                     'optimizer_state_dict': self.optimizer.state_dict(),
                     }, save_path)      
-            print(f"Model saved to {save_path}")
+        print(f"Model saved to {save_path}")
+        print("Training complete.")
+        return self.model
+        

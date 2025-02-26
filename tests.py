@@ -32,9 +32,10 @@ def get_single_input():
 
 def Train() :   
     diffuser = diff.Diffuser(timesteps=300, device="cuda")  # Adjust timesteps and device as needed
-    trainer = Trainer(model=model, diffuser=diffuser, data_loader=data_loader, epochs=20, lr=1e-4, device=device)
+    trainer = Trainer(model=model, diffuser=diffuser, data_loader=data_loader, epochs=300, lr=1e-4, device=device)
     # Start training
-    trainer.train()
+    model = trainer.train()
+    return model
             
 
 def load_model(model_path=save_path, device=device):
@@ -54,6 +55,7 @@ def sample_diffusion(model,inputs,num_sample=100):
     model.eval();model.to(device);predictions=[]
     diffuser = diff.Diffuser(timesteps=300, device="cuda")  # Adjust timesteps and device as needed
     prediction=diffuser.sample_from_noise(model,inputs,Tech = "ddpm")
+    prep.plot(prediction)
     return prediction
 
 def test_sample(device = device):
