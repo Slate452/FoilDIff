@@ -87,28 +87,35 @@ def get_data_files(img_dir ="./data/1_parameter/results",test_file = './data/1_p
 
 
 class NumpyDatasetFromFileList(Dataset):
-    def __init__(self,file_list,file_dir,transform = None ):
+    def __init__(self, file_list, file_dir, transform=None):
         self.file_list = file_list
         self.file_dir = file_dir
+        self.transform = transform  # Store the transform
+
     def __len__(self):
         return len(self.file_list)
 
     def __getitem__(self, idx):
         file_path = os.path.join(self.file_dir, self.file_list[idx])
         with np.load(file_path) as data:
-            np_array = data['a']  # Extracting the array 'a' from the .npz file
+            np_array = data['a']  # Extract the array 'a' from the .npz file
+
         tensor = torch.from_numpy(np_array).float()  # Convert to PyTorch tensor
+
+        # Apply transformation if defined
+        if self.transform:
+            tensor = self.transform(tensor)
+
         return tensor
 
 
 def get_and_load_dataset(img_dir = "./data/1_parameter/results"):
         # Define transformations
         f_transforms = transforms.Compose([
-                        transforms.Resize((IMG_SIZE, IMG_SIZE)),
-                        transforms.RandomHorizontalFlip(),
-                        transforms.ToTensor(),  # Scales data into [0,1]
-                        transforms.Lambda(lambda t: (t * 2) - 1)  # Scale between [-1, 1]
-                         ])
+            transforms.Lambda(lambda t: F.interpolate(t.unsqueeze(0), size=(IMG_SIZE, IMG_SIZE), mode='bilinear', align_corners=False).squeeze(0)),  # Resize tensor
+            transforms.RandomHorizontalFlip(),
+            transforms.Lambda(lambda t: (t * 2) - 1)  # Scale between [-1, 1]
+        ])
         # Read training and testing lists
         train_file_list, test_file_list = get_data_files()
         # Create datasets
