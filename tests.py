@@ -17,7 +17,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 os.makedirs('./models', exist_ok=True)
 
 data, data_loader, test_Dloader = prep.get_and_load_dataset()
-model = unet.build_unet()
+model = unet.UNetWithAttention()
 
 model.to(device)       
 optimizer = Adam(model.parameters(), lr=0.001)
