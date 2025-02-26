@@ -34,8 +34,13 @@ def Train() :
     diffuser = diff.Diffuser(timesteps=300, device="cuda")  # Adjust timesteps and device as needed
     trainer = Trainer(model=model, diffuser=diffuser, data_loader=data_loader, epochs=300, lr=1e-4, device=device)
     # Start training
-    model = trainer.train()
-    return model
+    trainer.train()
+    # Save the model
+    torch.save({
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    }, save_path)      
+    print(f"Model saved to {save_path}")
             
 
 def load_model(model_path=save_path, device=device):

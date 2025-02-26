@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from torch.optim import Adam
 
-save_path = './content/drive/MyDrive/Jan2025_LAIL/models/dif_model.pth'
-os.makedirs('./content/drive/MyDrive/Jan2025_LAIL/', exist_ok=True)
+save_path = './content/Feb2025_LAIL/models/dif_model.pth'
+os.makedirs(save_path, exist_ok=True)
 data, data_loader, test_Dloader = prep.get_and_load_dataset()
     
 
@@ -40,7 +40,7 @@ class Trainer:
         """
         Executes the training loop.
         """
-        #self.model.train()
+        self.model.train()
         
         for epoch in range(self.epochs):
             epoch_loss = 0.0
@@ -69,12 +69,12 @@ class Trainer:
             
             # Log epoch loss
             print(f"Epoch {epoch+1}/{self.epochs}, Loss: {epoch_loss / len(self.data_loader)}")
-    
-        torch.save({
+            torch.save({
                     'model_state_dict': self.model.state_dict(),
                     'optimizer_state_dict': self.optimizer.state_dict(),
                     }, save_path)      
-        print(f"Model saved to {save_path}")
+            print(f"Model saved to {save_path}")
+
         print("Training complete.")
         return self.model
         
