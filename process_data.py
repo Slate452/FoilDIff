@@ -142,7 +142,7 @@ def plot_tensor_channels(tensor, cmap='viridis'):
 
 
 
-def plot(case:torch.tensor = torch.randn(6, 128, 128)):
+def plot(case:torch.tensor = torch.randn(6, 32, 32)):
     case = case.cpu()
     # Convert to NumPy array
     if case.ndim == 4 and case.size(0) > 1:
