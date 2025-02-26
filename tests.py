@@ -52,15 +52,9 @@ def load_model(model_path=save_path, device=device):
 
 def sample_diffusion(model,inputs,num_sample=100):
     model.eval();model.to(device);predictions=[]
-    batch_size=25;N_all=num_sample
     diffuser = diff.Diffuser(timesteps=300, device="cuda")  # Adjust timesteps and device as needed
-    while N_all>0:
-        batch_size_now=min(batch_size,N_all)
-        N_all-=batch_size
-        prediction_batch=diffuser.sample_from_noise(model,inputs.to(device).repeat(batch_size_now,1,1,1),Tech = "ddpm")
-        predictions.append(prediction_batch.detach().cpu().numpy())
-    predictions=np.concatenate(predictions,axis=0)
-    return np.mean(predictions,axis=0),np.std(predictions,axis=0),predictions
+    prediction=diffuser.sample_from_noise(model,inputs,Tech = "ddpm")
+    return prediction
 
 def test_sample(device = device):
     Done = False

@@ -112,7 +112,7 @@ def get_and_load_dataset(img_dir = "./data/1_parameter/results"):
         # Read training and testing lists
         train_file_list, test_file_list = get_data_files()
         # Create datasets
-        train_dataset = NumpyDatasetFromFileList(train_file_list, file_dir=img_dir)
+        train_dataset = NumpyDatasetFromFileList(train_file_list, file_dir=img_dir, transform=f_transforms)
         test_dataset = NumpyDatasetFromFileList(test_file_list, file_dir=img_dir)
         train_loader= DataLoader(train_dataset,batch_size=BATCH_SIZE,shuffle=True, drop_last=True)
         test_loader = DataLoader(test_dataset,batch_size=BATCH_SIZE,shuffle=True, drop_last=True)
