@@ -23,11 +23,9 @@ model.to(device)
 optimizer = Adam(model.parameters(), lr=0.001)
 epochs = 100 # Try more!
 def get_single_input():
-    i = data[0].unsqueeze(0)
-    i.to(device)
+    i = data[0].to(device)
     print(i.shape)
-    Finput = i[:, :3, :, :]  # First 3 channels
-
+    Finput = i[:3, :, :]  # First 3 channels
     #Fpred = batch[:, 3:, :, :]  # Remaining 3 channels
     #prep.plot(i)
     return Finput

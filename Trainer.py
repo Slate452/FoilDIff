@@ -63,6 +63,9 @@ class Trainer:
 
                 # Track loss
                 epoch_loss += loss.item()
+                batch = batch.to("cpu")  # Moves the batch back to CPU
+                torch.cuda.empty_cache()  # Clears unused memory in CUDA (optional)
+
             
             # Log epoch loss
             print(f"Epoch {epoch+1}/{self.epochs}, Loss: {epoch_loss / len(self.data_loader)}")

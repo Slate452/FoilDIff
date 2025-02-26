@@ -72,30 +72,29 @@ class Diffuser:
             noise = eta * torch.randn_like(x)
             return mean + noise
 
+
     def sample_from_noise(self, model, condition, Tech="ddim"):
         """Generates a sample from noise using one of the two sample processes."""
-        sampler = self.ddpm_sample_timestep if Tech == "ddim" else self.ddim_sample_timestep
+        sampler = self.ddpm_sample_timestep if Tech == "ddpm" else self.ddim_sample_timestep
 
-        condition_shape = condition.shape
-        batch_size = condition.size(0)
-        starter = torch.randn(condition_shape, device=self.device)
-        x_t = torch.cat([starter, condition], dim=1)
+        condition_shape = condition.shape  # (C, H, W)
+        starter = torch.randn(condition_shape, device=self.device)  # Noise tensor
+        x_t = torch.cat([starter, condition], dim=0)  # Cat along channel dimension
 
         model.to(self.device)
 
         # Iterate over timesteps
         if sampler == self.ddpm_sample_timestep:
             for i in range(self.T - 1, -1, -1):
-                t = torch.full((batch_size,), i, device=self.device, dtype=torch.long)
+                t = torch.tensor(i, device=self.device, dtype=torch.long)  # Single value
                 x_t = sampler(x_t, t, model=model)
-        
+
         elif sampler == self.ddim_sample_timestep:
             for i in range(self.T - 1, -1, -self.skip_step):
-                t = torch.full((batch_size,), i, device=self.device, dtype=torch.long)
+                t = torch.tensor(i, device=self.device, dtype=torch.long)  # Single value
                 x_t = sampler(x_t, t, model=model)
 
         x_t = torch.clamp(x_t, -1.0, 1.0)
-        
-        
 
         return x_t
+
