@@ -111,13 +111,13 @@ class UNetWithAttention(nn.Module):
         self.attn3 = TransformerEncoderSA(256)
 
         """ Bottleneck """
-        self.bottleneck = ConvBlock(512, 512)
+        self.bottleneck = ConvBlock(512, 1024)
 
         """ Decoder """
-        self.d1 = DecoderBlock(512, 256)
-        self.d2 = DecoderBlock(256, 128)
-        self.d3 = DecoderBlock(128, 64)
-        self.d4 = DecoderBlock(64, 64)
+        self.d1 = DecoderBlock(1024, 512)
+        self.d2 = DecoderBlock(512, 256)
+        self.d3 = DecoderBlock(256, 128)
+        self.d4 = DecoderBlock(128, 64)
 
         self.teU1 = EmbedTime(256)
         self.teU2 = EmbedTime(128)
