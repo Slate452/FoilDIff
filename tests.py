@@ -56,10 +56,10 @@ def load_model(model_path=save_path, device=device):
     print(f"Model loaded from {model_path}")
     return model
 
-def sample_diffusion(model,inputs,num_sample=100):
-    model.eval();model.to(device);predictions=[]
-    diffuser = diff.Diffuser(timesteps=300, device="cuda")  # Adjust timesteps and device as needed
-    prediction=diffuser.sample_from_noise(model,inputs,Tech = "ddpm")
+def sample_diffusion(model,inputs,technique="ddpm", timestep=300,skip = 5):
+    model.eval();model.to(device);inputs.to(device)
+    diffuser = diff.Diffuser(timesteps=timestep, device="cuda", sample_trajectory_factor=skip)  # Adjust timesteps and device as needed
+    prediction=diffuser.sample_from_noise(model,inputs,Tech = technique)
     prep.plot(prediction)
     return prediction
 
