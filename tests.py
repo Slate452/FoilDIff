@@ -30,9 +30,9 @@ def get_single_input():
     #prep.plot(i)
     return Finput
 
-def Train() :   
+def Train(save_path= save_path) :   
     diffuser = diff.Diffuser(timesteps=300, device="cuda")  # Adjust timesteps and device as needed
-    trainer = Trainer(model=model, diffuser=diffuser, data_loader=data_loader, epochs=300, lr=1e-4, device=device)
+    trainer = Trainer(model=model, diffuser=diffuser, data_loader=data_loader, epochs=150, lr=1e-4, device=device)
     # Start training
     trainer.train()
     # Save the model
