@@ -44,8 +44,8 @@ def Train(save_path= save_path) :
             
 
 def load_model(model_path=save_path, device=device):
-    model = unet.build_unet().to(device)  # Rebuild the model and move it to the appropriate device
-    optimizer = Adam(model.parameters(), lr=0.001)  # Recreate the optimizer
+    model = unet.UNetWithAttention().to(device)  # Rebuild the model and move it to the appropriate device
+    optimizer = Adam(model.parameters(), lr=1e-4)  # Recreate the optimizer
 
     # Load the state dictionaries
     checkpoint = torch.load(model_path, map_location=device)
@@ -56,11 +56,12 @@ def load_model(model_path=save_path, device=device):
     print(f"Model loaded from {model_path}")
     return model
 
-def sample_diffusion(model,inputs,technique="ddpm", timestep=300,skip = 5):
+def sample_diffusion(model,inputs,technique="ddpm", timestep=300,skip = 5, plot = False):
     model.eval();model.to(device);inputs.to(device)
     diffuser = diff.Diffuser(timesteps=timestep, device="cuda", sample_trajectory_factor=skip)  # Adjust timesteps and device as needed
     prediction=diffuser.sample_from_noise(model,inputs,Tech = technique)
-    prep.plot(prediction)
+    if plot:
+        prep.plot(prediction)
     return prediction
 
 def test_sample(device = device):

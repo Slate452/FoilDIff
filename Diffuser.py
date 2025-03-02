@@ -17,8 +17,14 @@ class Diffuser:
         self.sqrt_one_minus_alphas_cumprod = torch.sqrt(1. - self.alphas_cumprod)
         self.posterior_variance = self.betas * (1. - self.alphas_cumprod_prev) / (1. - self.alphas_cumprod)
 
-    def beta_schedule(self, timesteps, start, end):
+    def beta_schedule(self, timesteps, start, end, beta_type="linear"):
         """Creates a beta schedule."""
+        if beta_type == "linear":
+            return torch.linspace(start, end, timesteps)
+        
+        elif beta_type == "cosine":
+            betas = torch.linspace(0, 1, timesteps)
+            return start + 0.5 * (end - start) * (1 + torch.cos(betas * 3.14159))
         return torch.linspace(start, end, timesteps)
 
     def get_index_from_list(self, vals, t, x_shape):
