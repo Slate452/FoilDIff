@@ -5,7 +5,7 @@ import math
 
 class PositionalEncoding(nn.Module):
     def __init__(self, embedding_dim: int, max_len: int = 1000, dropout: float = 0.1):
-        super().__init__()
+        super(PositionalEncoding, self).__init__()
         self.dropout = nn.Dropout(p=dropout)
 
         pos_encoding = torch.zeros(max_len, embedding_dim)
@@ -24,7 +24,7 @@ class EmbedTime(nn.Module):
         super().__init__()
         self.emb_layer = nn.Sequential(
             nn.SiLU(),
-            nn.Linear(dim, out_c),
+            nn.Linear(in_features=dim, out_features=out_c),
         )
 
     def forward(self, x, t):
@@ -34,7 +34,7 @@ class EmbedTime(nn.Module):
 
 class TransformerEncoderSA(nn.Module):
     def __init__(self, num_channels: int, num_heads: int = 4):
-        super().__init__()
+        super(TransformerEncoderSA, self).__init__()
         self.mha = nn.MultiheadAttention(embed_dim=num_channels, num_heads=num_heads, batch_first=True)
         self.ln = nn.LayerNorm(num_channels)
         self.ff_self = nn.Sequential(
@@ -46,12 +46,12 @@ class TransformerEncoderSA(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         B, C, H, W = x.shape
-        x = x.view(B, C, H * W).permute(0, 2, 1)  # [B, H*W, C]
+        x = x.view(B, C, H * W).permute(0, 2, 1)  # Reshape to [B, H*W, C]
         x_ln = self.ln(x)
-        attn_output, _ = self.mha(query=x_ln, key=x_ln, value=x_ln)
-        x = attn_output + x
-        x = self.ff_self(x) + x
-        return x.permute(0, 2, 1).view(B, C, H, W)
+        attention_value, _ = self.mha(query=x_ln, key=x_ln, value=x_ln)
+        attention_value = attention_value + x
+        attention_value = self.ff_self(attention_value) + attention_value
+        return attention_value.permute(0, 2, 1).view(B, C, H, W)  # Reshape back
 
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels):
@@ -78,103 +78,96 @@ class EncoderBlock(nn.Module):
         pooled_out = self.pool(conv_out)
         return conv_out, pooled_out
 
-class Bottleneck(nn.Module):
-    def __init__(self, channels, num_convs=4):
-        super().__init__()
-        layers = []
-        in_c = channels
-        for _ in range(num_convs):
-            layers.append(nn.Conv2d(in_c, in_c, kernel_size=1))
-            layers.append(nn.ReLU(inplace=True))
-        self.convs = nn.Sequential(*layers)
-        self.up = nn.ConvTranspose2d(in_c, in_c // 2, kernel_size=2, stride=2)
-
-    def forward(self, x):
-        x = self.convs(x)
-        x = self.up(x)
-        return x
-
 class DecoderBlock(nn.Module):
     def __init__(self, in_c, out_c):
         super().__init__()
         self.up = nn.ConvTranspose2d(in_c, out_c, kernel_size=2, stride=2)
-        self.conv = ConvBlock(out_c * 2, out_c)
+        self.conv = ConvBlock(out_c + out_c, out_c)
 
     def forward(self, x, skip):
         x = self.up(x)
-        x = torch.cat([x, skip], dim=1)
+        x = torch.cat([x, skip], axis=1)
         return self.conv(x)
 
 class UNetWithAttention(nn.Module):
-    def __init__(self,noise_steps: int = 1000, time_dim: int = 256):
+    def __init__(self, noise_steps: int = 1000, time_dim: int = 256):
         super().__init__()
         self.time_dim = time_dim
         self.pos_encoding = PositionalEncoding(embedding_dim=time_dim, max_len=noise_steps)
 
-        """ Define UNet depth """
-        self.in_channels = 6
-        self.base_channels = 64
-        self.depth = 2
-        self.levels = 4
+        """ Encoder """
+        self.e1 = EncoderBlock(6, 64)
+        self.e2 = EncoderBlock(64, 128)
+        self.e3 = EncoderBlock(128, 256)
+        self.e4 = EncoderBlock(256, 512)
 
-        """ Set Down blocks """
-        self.encoders = nn.ModuleList()
-        self.time_embeds_down = nn.ModuleList()
-        self.attns_down = nn.ModuleList()
+        self.te1 = EmbedTime(64)
+        self.te2 = EmbedTime(128)
+        self.te3 = EmbedTime(256)
+        self.te4 = EmbedTime(512)
 
-        in_c = self.in_channels
-        for i in range(self.depth):
-            out_c = self.base_channels * (2 ** i)
-            self.encoders.append(EncoderBlock(in_c, out_c))
-            self.time_embeds_down.append(EmbedTime(out_c))
-            if i < self.depth - 1:  # No attention on the last downsample
-                self.attns_down.append(TransformerEncoderSA(out_c))
-            in_c = out_c
+        self.attn1 = TransformerEncoderSA(64)
+        self.attn2 = TransformerEncoderSA(128)
+        self.attn3 = TransformerEncoderSA(256)
 
-        """ Create Bottleneck """
-        #self.bottleneck = Bottleneck(self.base_channels * 2**(self.levels-1), num_convs=6)
-        self.bottleneck = ConvBlock(in_c, in_c * 2)
-        bottleneck_out_c = in_c * 2
+        """ Bottleneck """
+        self.bottleneck = ConvBlock(512, 1024)
 
-        """ setUp blocks """
-        self.decoders = nn.ModuleList()
-        self.time_embeds_up = nn.ModuleList()
-        self.attns_up = nn.ModuleList()
+        """ Decoder """
+        self.d1 = DecoderBlock(1024, 512)
+        self.d2 = DecoderBlock(512, 256)
+        self.d3 = DecoderBlock(256, 128)
+        self.d4 = DecoderBlock(128, 64)
 
-        in_c = bottleneck_out_c
-        for i in reversed(range(self.depth)):
-            out_c = self.base_channels * (2 ** i)
-            self.decoders.append(DecoderBlock(in_c, out_c))
-            self.time_embeds_up.append(EmbedTime(out_c))
-            if i != 0:  # No attention at last decoder block
-                self.attns_up.append(TransformerEncoderSA(out_c))
-            in_c = out_c
+        self.teU1 = EmbedTime(512)
+        self.teU2 = EmbedTime(256)
+        self.teU3 = EmbedTime(128)
+        self.teU4 = EmbedTime(64)
 
-        """ Final output layer """
-        self.final_conv = nn.Conv2d(self.base_channels, self.in_channels, kernel_size=1)
+        self.attnU1 = TransformerEncoderSA(256)
+        self.attnU2 = TransformerEncoderSA(128)
+        self.attnU3 = TransformerEncoderSA(64)
+
+        """ Classifier """
+        self.outputs = nn.Conv2d(64, 6, kernel_size=1)
 
     def forward(self, x, t: torch.LongTensor):
         t = self.pos_encoding(t)
-        skips = []
+
         """ Encoder """
-        for i, encoder in enumerate(self.encoders):
-            s, x = encoder(x)
-            skips.append(s)
-            x = self.time_embeds_down[i](x, t)
-            if i < len(self.attns_down):
-                x = self.attns_down[i](x)
+        s1, p1 = self.e1(x)
+        p1 = self.te1(p1, t)
+        p1 = self.attn1(p1)
+
+        s2, p2 = self.e2(p1)
+        p2 = self.te2(p2, t)
+        p2 = self.attn2(p2)
+
+        s3, p3 = self.e3(p2)
+        p3 = self.te3(p3, t)
+        p3 = self.attn3(p3)
+
+        s4, p4 = self.e4(p3)
+        p4 = self.te4(p4, t)
+
         """ Bottleneck """
-        x = self.bottleneck(x)
+        b = self.bottleneck(p4)
 
         """ Decoder """
-        for i, decoder in enumerate(self.decoders):
-            skip = skips.pop()
-            x = decoder(x, skip)
-            x = self.time_embeds_up[i](x, t)
-            if i < len(self.attns_up):
-                x = self.attns_up[i](x)
+        d1 = self.d1(b, s4)
+        d1 = self.teU1(d1, t)
+
+        d2 = self.d2(d1, s3)
+        d2 = self.teU2(d2, t)
+        d2 = self.attnU1(d2)
+
+        d3 = self.d3(d2, s2)
+        d3 = self.teU3(d3, t)
+        d3 = self.attnU2(d3)
+
+        d4 = self.d4(d3, s1)
+        d4 = self.teU4(d4, t)
+        d4 = self.attnU3(d4)
+
         """ Output """
-        return self.final_conv(x)
-
-
-    
+        return self.outputs(d4)

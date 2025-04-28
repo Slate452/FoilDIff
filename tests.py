@@ -30,15 +30,6 @@ def get_single_input():
     #prep.plot(i)
     return Finput
 
-def test_unet(model, device):
-    noise_steps = 1000
-    r = torch.randint(0, noise_steps, (1,), dtype=torch.long)
-    Finput = torch.randn(1, 6, 128, 128).to(device=device)  # Example input tensor
-    output = model(Finput, t=r)
-    print(output.shape)
-    print("Number of parameters:", sum(p.numel() for p in model.parameters() if p.requires_grad))
-    print("Testing complete.")
-    
 def Train(save_path= save_path) :   
     diffuser = diff.Diffuser(timesteps=300, device="cuda")  # Adjust timesteps and device as needed
     trainer = Trainer(model=model, diffuser=diffuser, data_loader=data_loader, epochs=150, lr=1e-4, device=device)
