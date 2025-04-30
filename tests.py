@@ -24,7 +24,6 @@ optimizer = Adam(model.parameters(), lr=0.001)
 epochs = 100 # Try more!
 def get_single_input():
     i = data[0].to(device)
-    print(i.shape)
     Finput = i[:3, :, :]  # First 3 channels
     #Fpred = batch[:, 3:, :, :]  # Remaining 3 channels
     #prep.plot(i)
@@ -35,7 +34,6 @@ def test_unet(model, device):
     r = torch.randint(0, noise_steps, (1,), dtype=torch.long)
     Finput = torch.randn(1, 6, 128, 128).to(device=device)  # Example input tensor
     output = model(Finput, t=r)
-    print(output.shape)
     print("Number of parameters:", sum(p.numel() for p in model.parameters() if p.requires_grad))
     print("Testing complete.")
     
@@ -81,5 +79,5 @@ def test_sample(device = device):
 
     #smaple timestep
     #print 1 sample ]
-# Assuming you have a PyTorch model `MyModel` and DataLoader `train_loader`
+
 

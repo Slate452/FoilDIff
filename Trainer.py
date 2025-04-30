@@ -53,7 +53,6 @@ class Trainer:
 
                 # Zero gradients
                 self.optimizer.zero_grad()
-                print(batch.shape)
                 # Compute loss
                 loss = self.diffuser.get_loss(model = self.model,x_0 = batch, t =t)
 
