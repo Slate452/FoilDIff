@@ -13,7 +13,7 @@ import matplotlib.image as mpimg
 
 
 BATCH_SIZE = 25
-IMG_SIZE = 32
+IMG_SIZE = 128
 
 def read_file_to_list(file_path):
     with open(file_path, 'r') as file:
