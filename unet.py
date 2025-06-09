@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
+import Transformer
 
 class PositionalEncoding(nn.Module):
     def __init__(self, embedding_dim: int, max_len: int = 1000, dropout: float = 0.1):
@@ -79,14 +80,15 @@ class EncoderBlock(nn.Module):
         return conv_out, pooled_out
 
 class Bottleneck(nn.Module):
-    def __init__(self, channels, num_convs=4):
+    def __init__(self, channels, num_convs=1):
         super().__init__()
-        layers = []
-        in_c = channels
+        layers = nn.Sequential()
+        in_c = channels 
         for _ in range(num_convs):
-            layers.append(nn.Conv2d(in_c, in_c, kernel_size=1))
-            layers.append(nn.ReLU(inplace=True))
-        self.convs = nn.Sequential(*layers)
+            layers.append(ConvBlock(in_c, in_c))
+            layers.append(TransformerEncoderSA(in_c))
+            layers.append(ConvBlock(in_c, in_c))
+        self.convs = nn.Sequential(layers)
         self.up = nn.ConvTranspose2d(in_c, in_c // 2, kernel_size=2, stride=2)
 
     def forward(self, x):
@@ -106,16 +108,15 @@ class DecoderBlock(nn.Module):
         return self.conv(x)
 
 class UNetWithAttention(nn.Module):
-    def __init__(self,noise_steps: int = 1000, time_dim: int = 256):
+    def __init__(self,noise_steps: int = 1000, time_dim: int = 256, tran: bool = False):
         super().__init__()
         self.time_dim = time_dim
         self.pos_encoding = PositionalEncoding(embedding_dim=time_dim, max_len=noise_steps)
-
         """ Define UNet depth """
         self.in_channels = 6
         self.base_channels = 64
         self.depth = 2
-        self.levels = 4
+    
 
         """ Set Down blocks """
         self.encoders = nn.ModuleList()
@@ -132,8 +133,8 @@ class UNetWithAttention(nn.Module):
             in_c = out_c
 
         """ Create Bottleneck """
-        #self.bottleneck = Bottleneck(self.base_channels * 2**(self.levels-1), num_convs=6)
-        self.bottleneck = ConvBlock(in_c, in_c * 2)
+        #self.bottleneck = Bottleneck(self.base_channels * 2**(self.depth-1), num_convs=4)
+        self.bottleneck = ConvBlock(in_c, in_c * 2)# empty bottleneck for testing
         bottleneck_out_c = in_c * 2
 
         """ setUp blocks """
@@ -141,7 +142,8 @@ class UNetWithAttention(nn.Module):
         self.time_embeds_up = nn.ModuleList()
         self.attns_up = nn.ModuleList()
 
-        in_c = bottleneck_out_c
+        in_c = in_c if tran else bottleneck_out_c
+
         for i in reversed(range(self.depth)):
             out_c = self.base_channels * (2 ** i)
             self.decoders.append(DecoderBlock(in_c, out_c))
@@ -151,10 +153,11 @@ class UNetWithAttention(nn.Module):
             in_c = out_c
 
         """ Final output layer """
-        self.final_conv = nn.Conv2d(self.base_channels, self.in_channels, kernel_size=1)
+        self.final_conv = nn.Conv2d(self.base_channels, 3, kernel_size=1)
 
-    def forward(self, x, t: torch.LongTensor):
+    def forward(self, x, t: torch.LongTensor,c):
         t = self.pos_encoding(t)
+        x = torch.cat([c,x], dim=1)
         skips = []
         """ Encoder """
         for i, encoder in enumerate(self.encoders):
@@ -178,3 +181,68 @@ class UNetWithAttention(nn.Module):
 
 
     
+class UNetWithTransformer(UNetWithAttention):
+    def __init__(self, noise_steps: int = 1000, time_dim: int = 256,size=32):
+        super().__init__(noise_steps=noise_steps, time_dim=time_dim, tran=True)
+        
+        # Set up Transformer bottleneck
+        self.dit_channels = self.base_channels * 2 ** (self.depth - 1)  # match last encoder channel
+        self.dit_patch_size = 2
+        self.image_size = size  # set dynamically if needed
+        self.dit = Transformer.Transformer_S_2(
+            input_size=self.image_size // (2 ** self.depth),  # match spatial resolution after encoding
+            in_channels=self.dit_channels,
+            learn_sigma=False
+        )
+        self.dit_proj_in = nn.Conv2d(self.dit_channels, self.dit.in_channels, kernel_size=1)
+        self.dit_proj_out = nn.Conv2d(self.dit.out_channels, self.dit_channels, kernel_size=1)
+
+    def forward(self, x, t_raw: torch.LongTensor, c):
+        t = self.pos_encoding(t_raw)
+        x = torch.cat([c,x], dim=1)
+        skips = []
+
+        # Encoder path
+        for i, encoder in enumerate(self.encoders):
+            s, x = encoder(x)
+            skips.append(s)
+            x = self.time_embeds_down[i](x, t)
+            if i < len(self.attns_down):
+                x = self.attns_down[i](x)
+
+        # Bottleneck via Transformer
+        x = self.dit_proj_in(x)
+        x = self.dit(x, t=t_raw, y=c)  # y is used as the conditioning
+        x = self.dit_proj_out(x)
+
+        # Decoder path
+        for i, decoder in enumerate(self.decoders):
+            skip = skips.pop()
+            x = decoder(x, skip)
+            x = self.time_embeds_up[i](x, t)
+            if i < len(self.attns_up):
+                x = self.attns_up[i](x)
+
+        return self.final_conv(x)
+
+    
+class FoilFlex(UNetWithTransformer):
+    def __init__(self,noise_steps: int = 1000, time_dim: int = 256):
+        """ Initailize Task Specific Encoder Archetecture """
+        
+    def forward(self, x,c, t: torch.LongTensor):
+
+        t = self.pos_encoding(t)
+        skips = []
+        """ Encoder """
+        #have Encoder options here
+        """ Bottleneck """
+        # use Transformer attention blocks here
+        """ Decoder """
+
+        """ Output """
+        return self.final_conv(x)
+    
+
+    
+
