@@ -100,7 +100,7 @@ def sample_diffusion(technique="ddpm", timestep=300,skip = 5, plot = False):
     model = unet.UNetWithTransformer(noise_steps=noise_steps, time_dim=256, size =image_size).to(device)
     model.eval()
 
-    diffuser = diff.Diffuser(timesteps=timestep, device="cpu", sample_trajectory_factor=skip)  # Adjust timesteps and device as needed
+    diffuser = diff.Diffuser(timesteps=timestep, device=device, sample_trajectory_factor=skip)  # Adjust timesteps and device as needed
     prediction=diffuser.sample_from_noise(model,inputs,Tech = technique)
     print(f"Input shape: {inputs.shape}")
     print(f"Output shape: {prediction.shape}")  # Expected: (1, 3, 32, 32)
