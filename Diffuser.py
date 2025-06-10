@@ -82,14 +82,15 @@ class Diffuser:
         else:
             noise = eta * torch.randn_like(x)
             return mean + noise
-
+    
+        
+    @torch.no_grad()
     def sample_from_noise(self, model, condition, Tech="ddim"): 
         """Generates a sample from noise using one of the two sampling processes."""
         sampler = self.ddpm_sample_timestep if Tech == "ddpm" else self.ddim_sample_timestep
         batch_size = condition.shape[0] if condition.dim() == 4 else 1  # Handle single (CHW) vs. batch (BCHW)
         condition_shape = condition.shape[-3:]  # Extract (C, H, W)
         x_t = torch.randn((batch_size, *condition_shape), device=self.device)  # Noise tensor
-        model.to(self.device)
 
         timesteps = range(self.T - 1, -1, -1) if sampler == self.ddpm_sample_timestep else range(self.T - 1, -1, -self.skip_step)
         

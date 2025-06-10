@@ -158,4 +158,4 @@ def test_sample(device = device):
 #test_unet(UNet,device = device)
 #test_Transformer()
 #test_unet_with_dit()
-sample_diffusion()
+#sample_diffusion()

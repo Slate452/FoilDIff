@@ -1,12 +1,5 @@
-import torch
-import torch.nn as nn
-import numpy as np
-import math
-import timm
-from timm.models.vision_transformer import PatchEmbed, Attention, Mlp
 
 
-print("timm version:", timm.__version__)
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 
@@ -23,7 +16,13 @@ import torch
 import torch.nn as nn
 import numpy as np
 import math
+import timm
 from timm.models.vision_transformer import PatchEmbed, Attention, Mlp
+
+
+
+
+
 
 
 def modulate(x, shift, scale):
