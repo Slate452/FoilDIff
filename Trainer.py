@@ -115,7 +115,7 @@ class Trainer:
         for epoch in range(self.epochs):
             epoch_loss = 0.0
           
-            for step, batch in self.data_loader:
+            for step, batch in enumerate(self.data_loader):
                 # Move batch to device
                 batch = batch.to(self.device)
                 # Randomly sample timesteps
@@ -136,7 +136,7 @@ class Trainer:
                 self.progress_bar.set_postfix(loss=loss.item(), lr=self.scheduler.get_last_lr()[0])
                 self.progress_bar.update(1)
 
-                
+
                 batch = batch.to("cpu")  # Moves the batch back to CPU
                 torch.cuda.empty_cache()  # Clears unused memory in CUDA (optional)
 
