@@ -97,6 +97,9 @@ class Trainer:
         self.lr = lr
         self.optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=epochs)
+        global_step = 0
+        total_steps = self.epochs * len(self.data_loader)
+        progress_bar = tqdm(total=total_steps, desc="Training", dynamic_ncols=True)
 
 
 
@@ -111,9 +114,8 @@ class Trainer:
         
         for epoch in range(self.epochs):
             epoch_loss = 0.0
-            loop = tqdm(enumerate(self.data_loader), total=len(self.data_loader), desc=f"Epoch {epoch+1}/{self.epochs}")
           
-            for step, batch in loop:
+            for step, batch in self.data_loader:
                 # Move batch to device
                 batch = batch.to(self.device)
                 # Randomly sample timesteps
@@ -127,14 +129,18 @@ class Trainer:
                 # Backpropagation
                 loss.backward()
                 self.optimizer.step()
-
+                self.scheduler.step()
                 # Track loss
                 epoch_loss += loss.item()
-                loop.set_postfix(loss=loss.item(), lr=self.scheduler.get_last_lr()[0])
+                # Update progress bar
+                self.progress_bar.set_postfix(loss=loss.item(), lr=self.scheduler.get_last_lr()[0])
+                self.progress_bar.update(1)
+
+                
                 batch = batch.to("cpu")  # Moves the batch back to CPU
                 torch.cuda.empty_cache()  # Clears unused memory in CUDA (optional)
 
-            self.scheduler.step()
+            
             # Log epoch loss
             loss_history.append(epoch_loss / len(self.data_loader))
             #
