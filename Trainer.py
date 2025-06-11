@@ -129,7 +129,7 @@ class Trainer:
                 # Backpropagation
                 loss.backward()
                 self.optimizer.step()
-                self.scheduler.step()
+                
                 # Track loss
                 epoch_loss += loss.item()
                 # Update progress bar
@@ -140,7 +140,7 @@ class Trainer:
                 batch = batch.to("cpu")  # Moves the batch back to CPU
                 torch.cuda.empty_cache()  # Clears unused memory in CUDA (optional)
 
-            
+            self.scheduler.step()
             # Log epoch loss
             loss_history.append(epoch_loss / len(self.data_loader))
             #
