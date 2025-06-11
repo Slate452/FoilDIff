@@ -5,10 +5,14 @@ from copy import deepcopy
 from glob import glob
 from time import time
 import argparse
+
 import logging
 import os
-
+from tqdm import tqdm
+import matplotlib.pyplot as plt
+from IPython.display import clear_output
 import process_data as prep
+
 
 import torch
 import torch.distributed
@@ -73,7 +77,7 @@ def create_logger(logging_dir):
 
 
 class Trainer:
-    def __init__(self, model, diffuser, data_loader, epochs=10, lr=1e-4, device="cuda"):
+    def __init__(self, model, diffuser, data_loader, epochs=10000, lr=1e-4, device="cuda"):
         """
         Initializes the Trainer.
         
@@ -90,19 +94,26 @@ class Trainer:
         self.data_loader = data_loader
         self.epochs = epochs
         self.device = device
-        self.optimizer = optim.Adam(model.parameters(), lr=lr)
         self.lr = lr
+        self.optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=epochs)
+
+
 
     def train(self):
         """
         Executes the training loop.
         """
         self.model.train()
+        loss_history = []
+        plt.ion()  # interactive mode ON
+
         
         for epoch in range(self.epochs):
             epoch_loss = 0.0
+            loop = tqdm(enumerate(self.data_loader), total=len(self.data_loader), desc=f"Epoch {epoch+1}/{self.epochs}")
           
-            for step, batch in enumerate(data_loader):
+            for step, batch in loop:
                 # Move batch to device
                 batch = batch.to(self.device)
                 # Randomly sample timesteps
@@ -119,12 +130,28 @@ class Trainer:
 
                 # Track loss
                 epoch_loss += loss.item()
+                loop.set_postfix(loss=loss.item(), lr=self.scheduler.get_last_lr()[0])
                 batch = batch.to("cpu")  # Moves the batch back to CPU
                 torch.cuda.empty_cache()  # Clears unused memory in CUDA (optional)
 
-            
+            self.scheduler.step()
             # Log epoch loss
-            print(f"Epoch {epoch+1}/{self.epochs}, Loss: {epoch_loss / len(self.data_loader)}")
+            loss_history.append(epoch_loss / len(self.data_loader))
+            #
+            clear_output(wait=True)
+            plt.figure(figsize=(8, 4))
+            plt.plot(loss_history, label='Training Loss')
+            plt.xlabel('Epoch')
+            plt.ylabel('Loss')
+            plt.title('Live Training Loss')
+            plt.legend()
+            plt.grid(True)
+            plt.tight_layout()
+            plt.show()
+            plt.pause(0.01)  # allow the plot to refresh
+
+            #print(f"Epoch {epoch+1}/{self.epochs}, Loss: {epoch_loss / len(self.data_loader)}")
         print("Training complete.")
+        plt.savefig("training_loss_curve.png")
         return self.model
         
