@@ -95,10 +95,10 @@ class Trainer:
         self.epochs = epochs
         self.device = device
         self.lr = lr
-        self.optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=epochs)
         self.global_step = 0
         self.total_steps = self.epochs * len(self.data_loader)
+        self.optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=self.total_steps)
         self.progress_bar = tqdm(total=self.total_steps, desc="Training", dynamic_ncols=True)
 
 
