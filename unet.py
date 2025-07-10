@@ -19,7 +19,21 @@ class PositionalEncoding(nn.Module):
 
     def forward(self, t: torch.LongTensor) -> torch.Tensor:
         return self.dropout(self.pos_encoding[t].squeeze(1))
+    
+class ReduceBlock(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv = nn.Conv1d(in_channels=1152, out_channels=1024, kernel_size=16, stride=16)
+        self.norm = nn.LayerNorm(1024)
+        self.activation = nn.ReLU()
 
+    def forward(self, x):
+        x = x.permute(0, 2, 1)     # (B, C=1152, S=256)
+        x = self.conv(x)           # (B, 1024, 16)
+        x = x.permute(0, 2, 1)     # (B, 16, 1024) ← correct format for LayerNorm
+        x = self.norm(x)           # normalize over 1024 features
+        x = self.activation(x)
+        return x
 class EmbedTime(nn.Module):
     def __init__(self, out_c, dim: int = 256):
         super().__init__()
@@ -41,8 +55,6 @@ class TransformerEncoderSA(nn.Module):
         self.ff_self = nn.Sequential(
             nn.LayerNorm(num_channels),
             nn.Linear(num_channels, num_channels),
-            nn.LayerNorm(num_channels),
-            nn.Linear(num_channels, num_channels)
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -72,40 +84,45 @@ class EncoderBlock(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
         self.conv = ConvBlock(in_channels, out_channels)
+        self.conv2 = ConvBlock(out_channels, out_channels)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
 
     def forward(self, x):
         conv_out = self.conv(x)
+        conv_out = self.conv2(conv_out)
         pooled_out = self.pool(conv_out)
         return conv_out, pooled_out
 
-class Bottleneck(nn.Module):
-    def __init__(self, channels, num_convs=1):
-        super().__init__()
-        layers = nn.Sequential()
-        in_c = channels 
-        for _ in range(num_convs):
-            layers.append(ConvBlock(in_c, in_c))
-            layers.append(TransformerEncoderSA(in_c))
-            layers.append(ConvBlock(in_c, in_c))
-        self.convs = nn.Sequential(layers)
-        self.up = nn.ConvTranspose2d(in_c, in_c // 2, kernel_size=2, stride=2)
 
-    def forward(self, x):
-        x = self.convs(x)
-        x = self.up(x)
-        return x
 
 class DecoderBlock(nn.Module):
     def __init__(self, in_c, out_c):
         super().__init__()
         self.up = nn.ConvTranspose2d(in_c, out_c, kernel_size=2, stride=2)
         self.conv = ConvBlock(out_c * 2, out_c)
+        self.conv2 = ConvBlock(out_c, out_c)
 
     def forward(self, x, skip):
         x = self.up(x)
         x = torch.cat([x, skip], dim=1)
-        return self.conv(x)
+        convout = self.conv(x)
+        return self.conv2(convout)
+
+class Bottleneck(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super().__init__()
+        self.conv = ConvBlock(in_channels, out_channels)
+        b_neck= nn.ModuleList()
+        for x in range(4):
+            b_neck.append(ConvBlock(out_channels, out_channels))
+            b_neck.append(TransformerEncoderSA(out_channels))
+            x += 1
+        self.conv2 = nn.Sequential(*b_neck)
+
+    def forward(self, x):
+        conv_out = self.conv(x)
+        conv_out = self.conv2(conv_out)
+        return conv_out
 
 class UNetWithAttention(nn.Module):
     def __init__(self,noise_steps: int = 1000, time_dim: int = 256, tran: bool = False,depth: int = 2):
@@ -134,8 +151,7 @@ class UNetWithAttention(nn.Module):
             in_c = out_c
 
         """ Create Bottleneck """
-        #self.bottleneck = Bottleneck(self.base_channels * 2**(self.depth-1), num_convs=4)
-        self.bottleneck = ConvBlock(in_c, in_c * 2)# empty bottleneck for testing
+        self.bottleneck = Bottleneck(in_c,in_c * 2)
         bottleneck_out_c = in_c * 2
 
         """ setUp blocks """
@@ -183,14 +199,14 @@ class UNetWithAttention(nn.Module):
 
     
 class UNetWithTransformer(UNetWithAttention):
-    def __init__(self, noise_steps: int = 1000, time_dim: int = 256,size=32,depth: int = 2):
+    def __init__(self, noise_steps: int = 1000, time_dim: int = 256,size=32,depth: int = 4):
         super().__init__(noise_steps=noise_steps, time_dim=time_dim, tran=True,depth=depth)
         
         # Set up Transformer bottleneck
         self.dit_channels = self.base_channels * 2 ** (self.depth - 1)  # match last encoder channel
         self.dit_patch_size = 2
         self.image_size = size  # set dynamically if needed
-        self.dit = Transformer.Transformer_S_2(
+        self.dit = Transformer.Transformer_L_4(
             input_size=self.image_size // (2 ** self.depth),  # match spatial resolution after encoding
             in_channels=self.dit_channels,
             learn_sigma=False
@@ -226,8 +242,110 @@ class UNetWithTransformer(UNetWithAttention):
 
         return self.final_conv(x)
 
-    
+
+class UViT(Transformer.Transformer):
+    def __init__(self,
+                input_size=32,
+                patch_size=2,
+                in_channels=4,
+                hidden_size=1152,
+                depth=28,
+                num_heads=16,
+                mlp_ratio=4.0,
+                learn_sigma=True,
+                conditioning_channels=3):
+        super().__init__(input_size=input_size,
+                        patch_size=patch_size,
+                        in_channels=   in_channels,
+                        hidden_size=hidden_size,
+                        depth=depth,
+                        num_heads =    num_heads,
+                        mlp_ratio= mlp_ratio,
+                        learn_sigma=learn_sigma,
+                        conditioning_channels=conditioning_channels)
+        self.inblocks = nn.ModuleList([Transformer.TransformerBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio) for _ in range(int(depth/2))
+        ])
+        self.mid_block = Transformer.TransformerBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio)
+        self.outblocks = nn.ModuleList([
+            Transformer.TransformerBlock(hidden_size,num_heads, mlp_ratio=mlp_ratio) for _ in range(int(depth/2))
+        ])
+        self.reduce_block = ReduceBlock()
+        self.skips =[]
 
 
-    
+    def forward(self, x, t, y):
+        """
+        Forward pass of Transformer.
+        x: (N, C, H, W) tensor of spatial inputs (images or latent representations of images)
+        t: (N,) tensor of diffusion timesteps
+        y: (N,) tensor of class labels
+        """
+        x = self.x_embedder(x) + self.pos_embed  # (N, T, D), where T = H * W / patch_size ** 2
+        t = self.t_embedder(t)                   # (N, D)
+        y = self.y_embedder(y)    # (N, D)
+        c = t + y                                # (N, D)
 
+        #Input Blocks
+        for block in self.inblocks:
+            x = block(x, c)    # (N, T, D)
+            print(f"x.shape: {x.shape}")  # Debugging line to check shape
+            self.skips.append(x)  
+        
+        #Mid Block
+        x = self.mid_block(x, c)  # (N, T, D)    
+
+        #Output Blocks
+        for block in self.outblocks:
+            x = torch.cat([x, self.skips.pop()], dim=1) # Check Which dimension to concatenate
+            x = block(x, c)
+            x= self.reduce_block(x)  # Reduce the sequence length
+            print(f"x.shape: {x.shape}")   
+        
+        x = self.final_layer(x, c)                # (N, T, patch_size ** 2 * out_channels)
+        print(f"x.shape: {x.shape}")
+        x = self.unpatchify(x)                   # (N, out_channels, H, W)
+        return x
+
+class UNetwithUViT(UNetWithAttention):
+    def __init__(self, noise_steps: int = 1000, time_dim: int = 256,size=32,depth: int = 4):
+        super().__init__(noise_steps=noise_steps, time_dim=time_dim, tran=True,depth=depth)
+        
+        # Set up Transformer bottleneck
+        self.dit_channels = self.base_channels * 2 ** (self.depth - 1)  # match last encoder channel
+        self.dit_patch_size = 2
+        self.image_size = size  # set dynamically if needed
+        self.dit = UViT(depth=24, hidden_size=1024, patch_size=8, num_heads=16,
+            input_size=self.image_size // (2 ** self.depth),  # match spatial resolution after encoding
+            in_channels=self.dit_channels,
+            learn_sigma=False
+        )
+        self.dit_proj_in = nn.Conv2d(self.dit_channels, self.dit.in_channels, kernel_size=1)
+        self.dit_proj_out = nn.Conv2d(self.dit.out_channels, self.dit_channels, kernel_size=1)
+
+    def forward(self, x, t_raw: torch.LongTensor, c):
+        t = self.pos_encoding(t_raw)
+        x = torch.cat([c,x], dim=1)
+        skips = []
+
+        # Encoder path
+        for i, encoder in enumerate(self.encoders):
+            s, x = encoder(x)
+            skips.append(s)
+            x = self.time_embeds_down[i](x, t)
+            if i < len(self.attns_down):
+                x = self.attns_down[i](x)
+
+        # Bottleneck via Transformer
+        x = self.dit_proj_in(x)
+        x = self.dit(x, t=t_raw, y=c)  # y is used as the conditioning
+        x = self.dit_proj_out(x)
+
+        # Decoder path
+        for i, decoder in enumerate(self.decoders):
+            skip = skips.pop()
+            x = decoder(x, skip)
+            x = self.time_embeds_up[i](x, t)
+            if i < len(self.attns_up):
+                x = self.attns_up[i](x)
+
+        return self.final_conv(x)

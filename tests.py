@@ -27,11 +27,14 @@ epochs = 100 # Try more!
 
 
 
-def test_unet(model, device):
+def test_unet():
     noise_steps = 1000
+    model = unet.UNetWithAttention(noise_steps=noise_steps,time_dim=256, depth= 4).to(device)
     r = torch.randint(0, noise_steps, (1,), dtype=torch.long)
-    Finput = torch.randn(1, 6, 128, 128).to(device=device)  # Example input tensor
-    output = model(Finput, t=r)
+    noisy_x = torch.randn(1, 3, 128, 128).to(device=device)  # Example input tensor
+    Condition = torch.randn(1,3,128,128).to(device)  # (1, 3, 32, 32)
+
+    output = model(x=noisy_x, t=r, c = Condition)
     print("Number of parameters:", sum(p.numel() for p in model.parameters() if p.requires_grad))
     print("Testing complete.  Output shape:", output.shape)
 
@@ -44,7 +47,7 @@ def test_Transformer():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Initialize model with 3 input channels
-    model = Transformer.Transformer_S_4(in_channels=in_channels, num_classes=num_classes, learn_sigma = False).to(device)
+    model = Transformer.Transformer_L_8(in_channels=in_channels, num_classes=num_classes, learn_sigma = False).to(device)
     model.eval()
 
     # Create dummy RGB input
@@ -70,7 +73,61 @@ def test_unet_with_dit():
     noise_steps = 1000
    
     # Initialize model
-    model = backbone.UNetWithTransformer(noise_steps=noise_steps, time_dim=256, image_size=image_size).to(device)
+    model = unet.UNetWithTransformer(noise_steps=noise_steps, time_dim=256, size=image_size).to(device)
+    model.eval()
+    
+    # Create dummy input
+    x = torch.randn(batch_size, in_channels, image_size, image_size).to(device)  # (1, 6, 32, 32)
+    t = torch.randint(0, noise_steps, (batch_size,), dtype=torch.long).to(device)  # (1,)
+    c = torch.randn(1, 3, 128, 128)  # Example condition (flow parameters, e.g., 3 channels)
+
+    # Forward pass
+    with torch.no_grad():
+        out = model(x, t , c)
+
+    print(f"Input shape: {x.shape}")
+    print(f"Timestep shape: {t.shape}")
+    print(f"Condition shape: {c.shape}")
+    print("Number of parameters:", sum(p.numel() for p in model.parameters() if p.requires_grad))
+    print(f"Output shape: {out.shape}")  # Expected: (1, 6, 32, 32)
+
+
+def test_UViT():
+    # Parameters
+    batch_size = 1
+    in_channels = 3   # RGB
+    image_size = 32
+    num_classes = 1000
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    # Initialize model with 3 input channels
+    model = unet.UViT(in_channels=in_channels, learn_sigma = False).to(device)
+    model.eval()
+
+    # Create dummy RGB input
+    x = torch.randn(batch_size, in_channels, image_size, image_size).to(device)  # (1, 3, 32, 32)
+    t = torch.randint(0, 1000, (batch_size,), dtype=torch.long).to(device)       # (1,)
+    y = torch.randn(batch_size, in_channels, image_size, image_size).to(device)  # (1, 3, 32, 32)
+
+    # Forward pass
+    with torch.no_grad():
+        out = model(x, t, y)
+
+    print(f"Input shape: {x.shape}")
+    print(f"Timestep shape: {t.shape}")
+    print(f"Label shape: {y.shape}")
+    print("Number of parameters:", sum(p.numel() for p in model.parameters() if p.requires_grad))
+    print(f"Output shape: {out.shape}")  # Expected: (1, out_channels, 32, 32)
+
+def test_unet_with_uvit():
+    # Parameters
+    batch_size = 1
+    in_channels = 3       # e.g., 2 concatenated RGB images or multi-variate field
+    image_size = 128
+    noise_steps = 1000
+   
+    # Initialize model
+    model = unet.UNetwithUViT(noise_steps=noise_steps, time_dim=256, size=image_size).to(device)
     model.eval()
     
     # Create dummy input
@@ -155,7 +212,9 @@ def test_sample(device = device):
 
 '''
 
-#test_unet(UNet,device = device)
+#test_unet()
 #test_Transformer()
 test_unet_with_dit()
+#test_UViT()
+#test_unet_with_uvit()
 #sample_diffusion()

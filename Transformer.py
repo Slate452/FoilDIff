@@ -241,7 +241,9 @@ class Transformer(nn.Module):
         c = t + y                                # (N, D)
         for block in self.blocks:
             x = block(x, c)                      # (N, T, D)
+            # Debugging line to check shape
         x = self.final_layer(x, c)                # (N, T, patch_size ** 2 * out_channels)
+        # Debugging line to check shape
         x = self.unpatchify(x)                   # (N, out_channels, H, W)
         return x
 

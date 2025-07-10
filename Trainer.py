@@ -16,6 +16,43 @@ def update_ema(ema_model, model, decay=0.999):
         if name in ema_params:
             ema_params[name].data.mul_(decay).add_(param.data, alpha=1 - decay)
 
+def Checkpoint_save(model,loss,l_epoch, save_path):
+
+    """
+    Save the model state dictionary to the specified path.
+    write log file with model archtecture
+    export loss to csv file
+    Args:
+        model (torch.nn.Module): The model to save. 
+        save_path (str): The path where the model will be saved.
+        
+    """
+    #save loss to csv file
+    loss_file = os.path.join(os.path.dirname(save_path), 'loss.csv')
+    with open(loss_file, 'a') as f:
+        f.write(f"Loss:{loss}, Epoch{l_epoch}\n")
+    
+    # Save the model architecture to a text file
+    model_name = type(model).__name__
+    
+    path = os.path.join(os.path.dirname(save_path), f"{model_name}_{l_epoch}")
+    os.makedirs((path), exist_ok=True)
+
+    torch.save(model.state_dict(), path)
+    print(f"Model saved to {save_path}")
+
+
+def Error_log(model_name, error_message):
+    """
+    Create a log file to record errors during training.
+    Get Time and Error details
+    """
+    log_file = "error_log.txt"
+    with open(log_file, 'w') as f:
+        f.write("Error Log\n")
+        f.write("=========\n")
+    print(f"Error log created at {log_file}")
+
 
 def requires_grad(model, flag=True):
     for p in model.parameters():
@@ -23,11 +60,13 @@ def requires_grad(model, flag=True):
 
 
 class Trainer:
-    def __init__(self, model, diffuser, data_loader, epochs=10000, lr=1e-4, ema_decay=0.9999, device="cuda"):
+    def __init__(self, model, diffuser, data_loader, epochs=10000, lr=1e-4, ema_decay=0.9999, device="cuda",save_path=None):
         self.device = device if torch.cuda.is_available() else "cpu"
         self.model = model.to(self.device)
         self.ema_model = deepcopy(model).to(self.device)
         self.ema_model.eval()
+        self.save_path = save_path if save_path else './model_checkpoint.pth'
+        
 
         self.diffuser = diffuser
         self.data_loader = data_loader
@@ -77,6 +116,10 @@ class Trainer:
             plt.tight_layout()
             plt.show()
             plt.pause(0.01)
+
+            if epoch % 100 == 0:
+                Checkpoint_save(self.model, loss_history[-1], epoch, self.save_path)
+                print(f"Checkpoint saved at epoch {epoch}")
 
         print("Training complete.")
         plt.savefig("training_loss_curve.png")
