@@ -108,14 +108,15 @@ class DecoderBlock(nn.Module):
         return self.conv(x)
 
 class UNetWithAttention(nn.Module):
-    def __init__(self,noise_steps: int = 1000, time_dim: int = 256, tran: bool = False):
+    def __init__(self,noise_steps: int = 1000, time_dim: int = 256, tran: bool = False,depth: int = 2):
+        """ Initialize UNet with Attention """  
         super().__init__()
         self.time_dim = time_dim
         self.pos_encoding = PositionalEncoding(embedding_dim=time_dim, max_len=noise_steps)
         """ Define UNet depth """
         self.in_channels = 6
         self.base_channels = 64
-        self.depth = 2
+        self.depth = depth
     
 
         """ Set Down blocks """
@@ -182,8 +183,8 @@ class UNetWithAttention(nn.Module):
 
     
 class UNetWithTransformer(UNetWithAttention):
-    def __init__(self, noise_steps: int = 1000, time_dim: int = 256,size=32):
-        super().__init__(noise_steps=noise_steps, time_dim=time_dim, tran=True)
+    def __init__(self, noise_steps: int = 1000, time_dim: int = 256,size=32,depth: int = 2):
+        super().__init__(noise_steps=noise_steps, time_dim=time_dim, tran=True,depth=depth)
         
         # Set up Transformer bottleneck
         self.dit_channels = self.base_channels * 2 ** (self.depth - 1)  # match last encoder channel
@@ -226,23 +227,7 @@ class UNetWithTransformer(UNetWithAttention):
         return self.final_conv(x)
 
     
-class FoilFlex(UNetWithTransformer):
-    def __init__(self,noise_steps: int = 1000, time_dim: int = 256):
-        """ Initailize Task Specific Encoder Archetecture """
-        
-    def forward(self, x,c, t: torch.LongTensor):
 
-        t = self.pos_encoding(t)
-        skips = []
-        """ Encoder """
-        #have Encoder options here
-        """ Bottleneck """
-        # use Transformer attention blocks here
-        """ Decoder """
-
-        """ Output """
-        return self.final_conv(x)
-    
 
     
 
