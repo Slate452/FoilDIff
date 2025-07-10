@@ -246,10 +246,10 @@ class UNetWithTransformer(UNetWithAttention):
 class UViT(Transformer.Transformer):
     def __init__(self,
                 input_size=32,
-                patch_size=2,
-                in_channels=4,
-                hidden_size=1152,
-                depth=28,
+                patch_size=4,
+                in_channels=3,
+                hidden_size=1024,
+                depth=16,
                 num_heads=16,
                 mlp_ratio=4.0,
                 learn_sigma=True,
@@ -271,6 +271,7 @@ class UViT(Transformer.Transformer):
         ])
         self.reduce_block = ReduceBlock()
         self.skips =[]
+        self.Linear = nn.Linear(2*hidden_size, hidden_size)
 
 
     def forward(self, x, t, y):
@@ -288,21 +289,21 @@ class UViT(Transformer.Transformer):
         #Input Blocks
         for block in self.inblocks:
             x = block(x, c)    # (N, T, D)
-            print(f"x.shape: {x.shape}")  # Debugging line to check shape
             self.skips.append(x)  
         
         #Mid Block
-        x = self.mid_block(x, c)  # (N, T, D)    
+        x = self.mid_block(x, c)  # (N, T, D)  
+        n =0  
 
         #Output Blocks
         for block in self.outblocks:
-            x = torch.cat([x, self.skips.pop()], dim=1) # Check Which dimension to concatenate
+            x = self.Linear(torch.cat([x, self.skips.pop()], dim=-1))# Check Which dimension to concatenate
             x = block(x, c)
-            x= self.reduce_block(x)  # Reduce the sequence length
-            print(f"x.shape: {x.shape}")   
+            
+            #x= self.reduce_block(x)  # Reduce the sequence length
+            #print(f"x.shape: {x.shape}") 
         
         x = self.final_layer(x, c)                # (N, T, patch_size ** 2 * out_channels)
-        print(f"x.shape: {x.shape}")
         x = self.unpatchify(x)                   # (N, out_channels, H, W)
         return x
 

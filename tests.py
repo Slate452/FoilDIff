@@ -42,12 +42,12 @@ def test_Transformer():
     # Parameters
     batch_size = 1
     in_channels = 3   # RGB
-    image_size = 32
+    image_size = 128
     num_classes = 1000
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Initialize model with 3 input channels
-    model = Transformer.Transformer_L_8(in_channels=in_channels, num_classes=num_classes, learn_sigma = False).to(device)
+    model = Transformer.Transformer_L_8(input_size = image_size, in_channels=in_channels, num_classes=num_classes, learn_sigma = False).to(device)
     model.eval()
 
     # Create dummy RGB input
@@ -96,12 +96,12 @@ def test_UViT():
     # Parameters
     batch_size = 1
     in_channels = 3   # RGB
-    image_size = 32
+    image_size = 128
     num_classes = 1000
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Initialize model with 3 input channels
-    model = unet.UViT(in_channels=in_channels, learn_sigma = False).to(device)
+    model = unet.UViT(input_size=image_size,in_channels=in_channels, learn_sigma = False).to(device)
     model.eval()
 
     # Create dummy RGB input
@@ -214,7 +214,8 @@ def test_sample(device = device):
 
 #test_unet()
 #test_Transformer()
-test_unet_with_dit()
-#test_UViT()
+#test_unet_with_dit()
+
+test_UViT()
 #test_unet_with_uvit()
 #sample_diffusion()
