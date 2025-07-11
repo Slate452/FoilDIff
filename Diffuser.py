@@ -11,17 +11,17 @@ class Diffuser():
     def __init__(self, steps, device):
         self.device = device
         self.steps = steps
-        self.betas = torch.tensor([])
-        self.beta_source = torch.tensor([])
+        self.betas = torch.tensor([]).to(device)
+        self.beta_source = torch.tensor([]).to(device)
         self.alphas = 1-self.betas
         self.alphas_bar = torch.cumprod(self.alphas, 0)
         self.one_minus_alphas_bar = 1 - self.alphas_bar
         self.sqrt_alphas = torch.sqrt(self.alphas)
         self.sqrt_alphas_bar = torch.sqrt(self.alphas_bar)
         self.sqrt_one_minus_alphas_bar = torch.sqrt(self.one_minus_alphas_bar)
-
+        
     def forward_diffusion(self, x0, t, noise):
-        xt = self.sqrt_alphas_bar[t]*x0+ self.sqrt_one_minus_alphas_bar[t]*noise
+        xt = self.sqrt_alphas_bar[t]*x0 + self.sqrt_one_minus_alphas_bar[t]*noise
         return xt
     def sample_from_noise(self, model, condition, show_progress=True, ddim=False, skip_steps= 2):
         with torch.no_grad():

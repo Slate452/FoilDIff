@@ -87,10 +87,11 @@ class Trainer:
 
     def train_step(self, model: torch.nn.Module, batch):
         batch = batch.to(self.device)  # shape: [B, 6, H, W]
-        condition = batch[:, :3, :, :]
-        targets   = batch[:, 3:, :, :]
+        condition = batch[:, :3, :, :].to(self.device)  # shape: [B, 3, H, W]
+        targets   = batch[:, 3:, :, :].to(self.device)  # shape: [B, 3, H, W]
 
         t = torch.randint(1, self.diffuser.steps + 1, size=(targets.size(0),), device=self.device).long()
+        t.to(self.device)  # shape: [B]
         noise = torch.randn_like(targets).to(self.device)  # shape: [B, 3, H, W]
         xt = self.diffuser.forward_diffusion(targets, t, noise)
 
