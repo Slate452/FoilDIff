@@ -11,8 +11,8 @@ class Diffuser():
     def __init__(self, steps, device):
         self.device = device
         self.steps = steps
-        self.betas = torch.tensor([]).to(device)
-        self.beta_source = torch.tensor([]).to(device)
+        self.betas = torch.tensor([])
+        self.beta_source = torch.tensor([])
         self.alphas = 1-self.betas
         self.alphas_bar = torch.cumprod(self.alphas, 0)
         self.one_minus_alphas_bar = 1 - self.alphas_bar
@@ -106,7 +106,7 @@ class Diffuser():
         self.sqrt_one_minus_alphas_bar = torch.sqrt(self.one_minus_alphas_bar)
 
 
-class LinearParamsDiffuser(Diffuser):
+class LinearDiffuser(Diffuser):
 
     def __init__(self, steps, beta_min, beta_max, device):
         super().__init__(steps, device)
@@ -116,7 +116,7 @@ class LinearParamsDiffuser(Diffuser):
         self.generate_parameters_from_beta()
 
 
-class sigParamsDiffuser(Diffuser):
+class sigmoidDiffuser(Diffuser):
 
     def __init__(self, steps, beta_min, beta_max, device):
         super().__init__(steps, device)
@@ -125,7 +125,7 @@ class sigParamsDiffuser(Diffuser):
             torch.linspace(-6, 6, self.steps))*(beta_max-beta_min)+beta_min
         self.generate_parameters_from_beta()
 
-class Cos2ParamsDiffuser(Diffuser):
+class CosSchDiffuser(Diffuser):
 
     def __init__(self, steps, device):
         super().__init__(steps, device)

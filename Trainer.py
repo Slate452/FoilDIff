@@ -89,9 +89,8 @@ class Trainer:
         batch = batch.to(self.device)  # shape: [B, 6, H, W]
         condition = batch[:, :3, :, :].to(self.device)  # shape: [B, 3, H, W]
         targets   = batch[:, 3:, :, :].to(self.device)  # shape: [B, 3, H, W]
-
-        t = torch.randint(1, self.diffuser.steps + 1, size=(targets.size(0),), device=self.device).long()
-        t.to(self.device)  # shape: [B]
+        B = batch.size(0)
+        t = torch.randint(0, self.diffuser.steps, (B,), dtype=torch.long).to(self.device)
         noise = torch.randn_like(targets).to(self.device)  # shape: [B, 3, H, W]
         xt = self.diffuser.forward_diffusion(targets, t, noise)
 
@@ -118,10 +117,13 @@ class Trainer:
                     self.optimizer.step()
 
                     update_ema(self.ema_model, self.model, decay=self.ema_decay)
-
+                    
                     epoch_loss += loss.item()
                     self.progress_bar.set_postfix(loss=loss.item(), lr=self.optimizer.param_groups[0]['lr'])
                     self.progress_bar.update(1)
+
+                    del batch , loss
+                    torch.cuda.empty_cache()
 
                 loss_history.append(epoch_loss / len(self.data_loader))
                 self.scheduler.step()
