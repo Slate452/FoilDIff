@@ -253,7 +253,8 @@ class UViT(Transformer.Transformer):
                 num_heads=16,
                 mlp_ratio=4.0,
                 learn_sigma=True,
-                conditioning_channels=3):
+                conditioning_channels=3, 
+                mids = 1):
         super().__init__(input_size=input_size,
                         patch_size=patch_size,
                         in_channels=   in_channels,
@@ -265,22 +266,19 @@ class UViT(Transformer.Transformer):
                         conditioning_channels=conditioning_channels)
         self.inblocks = nn.ModuleList([Transformer.TransformerBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio) for _ in range(int(depth/2))
         ])
-        self.mid_block = Transformer.TransformerBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio)
+        
+        self.mid_blocks = nn.ModuleList([
+            Transformer.TransformerBlock(hidden_size,num_heads, mlp_ratio=mlp_ratio) for _ in range(mids)
+        ])
         self.outblocks = nn.ModuleList([
             Transformer.TransformerBlock(hidden_size,num_heads, mlp_ratio=mlp_ratio) for _ in range(int(depth/2))
         ])
         self.reduce_block = ReduceBlock()
         self.skips =[]
         self.Linear = nn.Linear(2*hidden_size, hidden_size)
-
+        self.mids = mids
 
     def forward(self, x, t, y):
-        """
-        Forward pass of Transformer.
-        x: (N, C, H, W) tensor of spatial inputs (images or latent representations of images)
-        t: (N,) tensor of diffusion timesteps
-        y: (N,) tensor of class labels
-        """
         x = self.x_embedder(x) + self.pos_embed  # (N, T, D), where T = H * W / patch_size ** 2
         t = self.t_embedder(t)                   # (N, D)
         y = self.y_embedder(y)    # (N, D)
@@ -292,8 +290,9 @@ class UViT(Transformer.Transformer):
             self.skips.append(x)  
         
         #Mid Block
-        x = self.mid_block(x, c)  # (N, T, D)  
-        n =0  
+        for block in self.mid_blocks:
+            x = block(x, c)    # (N, T, D)
+          
 
         #Output Blocks
         for block in self.outblocks:
@@ -315,10 +314,11 @@ class UNetwithUViT(UNetWithAttention):
         self.dit_channels = self.base_channels * 2 ** (self.depth - 1)  # match last encoder channel
         self.dit_patch_size = 2
         self.image_size = size  # set dynamically if needed
-        self.dit = UViT(depth=24, hidden_size=1024, patch_size=8, num_heads=16,
+        self.dit = UViT(depth=12, hidden_size=768, patch_size=8, num_heads=12,
             input_size=self.image_size // (2 ** self.depth),  # match spatial resolution after encoding
             in_channels=self.dit_channels,
-            learn_sigma=False
+            learn_sigma=False,
+            mids = 10
         )
         self.dit_proj_in = nn.Conv2d(self.dit_channels, self.dit.in_channels, kernel_size=1)
         self.dit_proj_out = nn.Conv2d(self.dit.out_channels, self.dit_channels, kernel_size=1)
@@ -350,3 +350,23 @@ class UNetwithUViT(UNetWithAttention):
                 x = self.attns_up[i](x)
 
         return self.final_conv(x)
+    
+
+#################################################################################
+#                                Standard Model and Names                       #
+#################################################################################
+
+def UNET(**kwargs):
+    return UNetWithAttention(time_dim=256, depth= 5,**kwargs)
+
+def DiT(**kwargs):
+    return Transformer.Transformer_L_8(input_size=128,in_channels=3, learn_sigma = False,**kwargs)
+
+def Flex(**kwargs):
+    return UNetWithTransformer(time_dim=256, size=128, depth=4, **kwargs)
+
+def UDiT(**kwargs):
+    return UViT(input_size=128,in_channels=3, conditioning_channels=3, **kwargs)
+
+def UTFLEX(**kwargs):
+    return UNetwithUViT(time_dim=256, size=128, depth=4, **kwargs)

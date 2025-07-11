@@ -28,7 +28,7 @@ epochs = 100 # Try more!
 
 def test_unet():
     noise_steps = 1000
-    model = backbone.UNetWithAttention(noise_steps=noise_steps,time_dim=256, depth= 4).to(device)
+    model = backbone.UNET()
     r = torch.randint(0, noise_steps, (1,), dtype=torch.long)
     noisy_x = torch.randn(1, 3, 128, 128).to(device=device)  # Example input tensor
     Condition = torch.randn(1,3,128,128).to(device)  # (1, 3, 32, 32)
@@ -46,7 +46,7 @@ def test_Transformer():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Initialize model with 3 input channels
-    model = Transformer.Transformer_L_8(input_size = image_size, in_channels=in_channels, num_classes=num_classes, learn_sigma = False).to(device)
+    model = Transformer.Transformer_L_8(input_size = image_size, in_channels=in_channels, learn_sigma = False).to(device)
     model.eval()
 
     # Create dummy RGB input
@@ -58,12 +58,12 @@ def test_Transformer():
     with torch.no_grad():
         out = model(x, t, y)
 
-    print(f"Model: {model.__class__.__name__}")
+    print(f"\nModel: {model.__class__.__name__}")
     print(f"Input shape: {x.shape}")
     print(f"Timestep shape: {t.shape}")
     print(f"Label shape: {y.shape}")
     print("Number of parameters:", sum(p.numel() for p in model.parameters() if p.requires_grad))
-    print(f"Output shape: {out.shape}")  # Expected: (1, out_channels, 32, 32)
+    print(f"Output shape: {out.shape}\n")  # Expected: (1, out_channels, 32, 32)
 
 def test_unet_with_dit():
     # Parameters
@@ -73,7 +73,7 @@ def test_unet_with_dit():
     noise_steps = 1000
    
     # Initialize model
-    model = backbone.UNetWithTransformer(noise_steps=noise_steps, time_dim=256, size=image_size).to(device)
+    model = backbone.Flex()
     model.eval()
     
     # Create dummy input
@@ -90,10 +90,10 @@ def test_unet_with_dit():
     print(f"Timestep shape: {t.shape}")
     print(f"Condition shape: {c.shape}")
     print("Number of parameters:", sum(p.numel() for p in model.parameters() if p.requires_grad))
-    print(f"Output shape: {out.shape}")  # Expected: (1, 6, 32, 32)
+    print(f"Output shape: {out.shape}\n")  # Expected: (1, 6, 32, 32)
 
 
-def test_UViT():
+def test_UDiT():
     # Parameters
     batch_size = 1
     in_channels = 3   # RGB
@@ -102,7 +102,7 @@ def test_UViT():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Initialize model with 3 input channels
-    model = backbone.UViT(input_size=image_size,in_channels=in_channels, learn_sigma = False).to(device)
+    model = backbone.UDiT()
     model.eval()
 
     # Create dummy RGB input
@@ -118,7 +118,7 @@ def test_UViT():
     print(f"Timestep shape: {t.shape}")
     print(f"Label shape: {y.shape}")
     print("Number of parameters:", sum(p.numel() for p in model.parameters() if p.requires_grad))
-    print(f"Output shape: {out.shape}")  # Expected: (1, out_channels, 32, 32)
+    print(f"Output shape: {out.shape}\n")  # Expected: (1, out_channels, 32, 32)
 
 def test_unet_with_uvit():
     # Parameters
@@ -128,7 +128,7 @@ def test_unet_with_uvit():
     noise_steps = 1000
    
     # Initialize model
-    model = backbone.UNetwithUViT(noise_steps=noise_steps, time_dim=256, size=image_size).to(device)
+    model = backbone.UTFLEX()
     model.eval()
     
     # Create dummy input
@@ -144,7 +144,7 @@ def test_unet_with_uvit():
     print(f"Timestep shape: {t.shape}")
     print(f"Condition shape: {c.shape}")
     print("Number of parameters:", sum(p.numel() for p in model.parameters() if p.requires_grad))
-    print(f"Output shape: {out.shape}")  # Expected: (1, 6, 32, 32)
+    print(f"Output shape: {out.shape}\n")  # Expected: (1, 6, 32, 32)
 
 
 def sample_diffusion(technique="ddpm", timestep=300,skip = 5, plot = False):
@@ -216,7 +216,6 @@ def test_sample(device = device):
 #test_unet()
 #test_Transformer()
 #test_unet_with_dit()
-
-test_UViT()
-#test_unet_with_uvit()
+#test_UDiT()
+test_unet_with_uvit()
 #sample_diffusion()
