@@ -91,7 +91,7 @@ class Trainer:
         targets   = batch[:, 3:, :, :]
 
         t = torch.randint(1, self.diffuser.steps + 1, size=(targets.size(0),), device=self.device).long()
-        noise = torch.randn_like(targets)
+        noise = torch.randn_like(targets).to(self.device)  # shape: [B, 3, H, W]
         xt = self.diffuser.forward_diffusion(targets, t, noise)
 
         predicted_noise = model(xt, t, condition)

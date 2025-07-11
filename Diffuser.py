@@ -21,7 +21,7 @@ class Diffuser():
         self.sqrt_one_minus_alphas_bar = torch.sqrt(self.one_minus_alphas_bar)
 
     def forward_diffusion(self, x0, t, noise):
-        xt = self.sqrt_alphas_bar[t]*x0+self.sqrt_one_minus_alphas_bar[t]*noise
+        xt = self.sqrt_alphas_bar[t]*x0+ self.sqrt_one_minus_alphas_bar[t]*noise
         return xt
     def sample_from_noise(self, model, condition, show_progress=True, ddim=False, skip_steps= 2):
         with torch.no_grad():
