@@ -6,7 +6,59 @@ import torch.nn.functional as F
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from IPython.display import clear_output
-import process_opf_data as prep
+import Process_opf_data as prep
+import datetime
+
+def Error_log(model_name, error_message):
+    """
+    Log error message with timestamp.
+
+    Args:
+        model_name (str): Name of the model.
+        error_message (str): Error message or exception trace.
+    """
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_file = "error_log.txt"
+    
+    with open(log_file, 'a') as f:
+        f.write(f"[{timestamp}] Error in model: {model_name}\n")
+        f.write(f"Message: {error_message}\n")
+        f.write("=" * 80 + "\n")
+    
+    print(f"Error logged to {log_file}")
+
+def Checkpoint_save(model, loss, l_epoch, save_path):
+    """
+    Save model checkpoint and training logs.
+
+    Args:
+        model (torch.nn.Module): The model to save.
+        loss (float): The training loss at current epoch.
+        l_epoch (int): The current epoch number.
+        save_path (str): The full path to save the model file (should end in '.pth').
+    """
+    # Create base directory if it doesn't exist
+    base_dir = os.path.dirname(save_path)
+    os.makedirs(base_dir, exist_ok=True)
+
+    # Save loss to CSV file
+    loss_file = os.path.join(base_dir, 'loss.csv')
+    with open(loss_file, 'a') as f:
+        f.write(f"{l_epoch},{loss:.6f}\n")
+
+    # Save model weights
+    model_name = model.__class__.__name__
+    model_dir = os.path.join(base_dir, f"{model_name}_epoch_{l_epoch}")
+    os.makedirs(model_dir, exist_ok=True)
+
+    checkpoint_file = os.path.join(model_dir, "model.pth")
+    torch.save(model.state_dict(), checkpoint_file)
+    print(f"Model checkpoint saved to {checkpoint_file}")
+
+    # Save model architecture (optional)
+    arch_file = os.path.join(model_dir, "architecture.txt")
+    with open(arch_file, 'w') as f:
+        f.write(str(model))
 
 
 def update_ema(ema_model, model, decay=0.999):
@@ -16,42 +68,6 @@ def update_ema(ema_model, model, decay=0.999):
         if name in ema_params:
             ema_params[name].data.mul_(decay).add_(param.data, alpha=1 - decay)
 
-def Checkpoint_save(model,loss,l_epoch, save_path):
-
-    """
-    Save the model state dictionary to the specified path.
-    write log file with model archtecture
-    export loss to csv file
-    Args:
-        model (torch.nn.Module): The model to save. 
-        save_path (str): The path where the model will be saved.
-        
-    """
-    #save loss to csv file
-    loss_file = os.path.join(os.path.dirname(save_path), 'loss.csv')
-    with open(loss_file, 'a') as f:
-        f.write(f"Loss:{loss}, Epoch{l_epoch}\n")
-    
-    # Save the model architecture to a text file
-    model_name = type(model).__name__
-    
-    path = os.path.join(os.path.dirname(save_path), f"{model_name}_{l_epoch}")
-    os.makedirs((path), exist_ok=True)
-
-    torch.save(model.state_dict(), path)
-    print(f"Model saved to {save_path}")
-
-
-def Error_log(model_name, error_message):
-    """
-    Create a log file to record errors during training.
-    Get Time and Error details
-    """
-    log_file = "error_log.txt"
-    with open(log_file, 'w') as f:
-        f.write("Error Log\n")
-        f.write("=========\n")
-    print(f"Error log created at {log_file}")
 
 
 def requires_grad(model, flag=True):

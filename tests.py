@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 import os
-import process_opf_data as prep
-from process_opf_data import IMG_SIZE, BATCH_SIZE
+import Process_opf_data as prep
+from Process_opf_data import IMG_SIZE, BATCH_SIZE
 import Diffuser as diff
-import unet
+import Backbone as backbone
 import torch
 import torch.nn.functional as F
 import numpy as np
@@ -12,14 +12,13 @@ import matplotlib.image as mpimg
 from torch.optim import Adam
 #from Trainer import *
 import Transformer
-import backbone
 
 save_path = './models/dif_model.pth'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 os.makedirs('./models', exist_ok=True)
 
 #data, data_loader, test_Dloader = prep.get_and_load_dataset()
-UNet = unet.UNetWithAttention().to(device)
+UNet = backbone.UNetWithAttention().to(device)
 
 model = UNet # Choose between UNet or Transformer     
 optimizer = Adam(model.parameters(), lr=0.001)
@@ -29,7 +28,7 @@ epochs = 100 # Try more!
 
 def test_unet():
     noise_steps = 1000
-    model = unet.UNetWithAttention(noise_steps=noise_steps,time_dim=256, depth= 4).to(device)
+    model = backbone.UNetWithAttention(noise_steps=noise_steps,time_dim=256, depth= 4).to(device)
     r = torch.randint(0, noise_steps, (1,), dtype=torch.long)
     noisy_x = torch.randn(1, 3, 128, 128).to(device=device)  # Example input tensor
     Condition = torch.randn(1,3,128,128).to(device)  # (1, 3, 32, 32)
@@ -59,6 +58,7 @@ def test_Transformer():
     with torch.no_grad():
         out = model(x, t, y)
 
+    print(f"Model: {model.__class__.__name__}")
     print(f"Input shape: {x.shape}")
     print(f"Timestep shape: {t.shape}")
     print(f"Label shape: {y.shape}")
@@ -73,7 +73,7 @@ def test_unet_with_dit():
     noise_steps = 1000
    
     # Initialize model
-    model = unet.UNetWithTransformer(noise_steps=noise_steps, time_dim=256, size=image_size).to(device)
+    model = backbone.UNetWithTransformer(noise_steps=noise_steps, time_dim=256, size=image_size).to(device)
     model.eval()
     
     # Create dummy input
@@ -85,6 +85,7 @@ def test_unet_with_dit():
     with torch.no_grad():
         out = model(x, t , c)
 
+    print(f"Model: {model.__class__.__name__}")
     print(f"Input shape: {x.shape}")
     print(f"Timestep shape: {t.shape}")
     print(f"Condition shape: {c.shape}")
@@ -101,7 +102,7 @@ def test_UViT():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Initialize model with 3 input channels
-    model = unet.UViT(input_size=image_size,in_channels=in_channels, learn_sigma = False).to(device)
+    model = backbone.UViT(input_size=image_size,in_channels=in_channels, learn_sigma = False).to(device)
     model.eval()
 
     # Create dummy RGB input
@@ -112,7 +113,7 @@ def test_UViT():
     # Forward pass
     with torch.no_grad():
         out = model(x, t, y)
-
+    print(f"Model: {model.__class__.__name__}")
     print(f"Input shape: {x.shape}")
     print(f"Timestep shape: {t.shape}")
     print(f"Label shape: {y.shape}")
@@ -127,7 +128,7 @@ def test_unet_with_uvit():
     noise_steps = 1000
    
     # Initialize model
-    model = unet.UNetwithUViT(noise_steps=noise_steps, time_dim=256, size=image_size).to(device)
+    model = backbone.UNetwithUViT(noise_steps=noise_steps, time_dim=256, size=image_size).to(device)
     model.eval()
     
     # Create dummy input
@@ -138,7 +139,7 @@ def test_unet_with_uvit():
     # Forward pass
     with torch.no_grad():
         out = model(x, t , c)
-
+    print(f"Model: {model.__class__.__name__}")
     print(f"Input shape: {x.shape}")
     print(f"Timestep shape: {t.shape}")
     print(f"Condition shape: {c.shape}")
@@ -154,7 +155,7 @@ def sample_diffusion(technique="ddpm", timestep=300,skip = 5, plot = False):
     noise_steps = timestep
     inputs = torch.randn(batch_size, in_channels, image_size, image_size).to(device)  # (1, 3, 32, 32)
     # Initialize model
-    model = unet.UNetWithTransformer(noise_steps=noise_steps, time_dim=256, size =image_size).to(device)
+    model = backbone.UNetWithTransformer(noise_steps=noise_steps, time_dim=256, size =image_size).to(device)
     model.eval()
 
     diffuser = diff.Diffuser(timesteps=timestep, device=device, sample_trajectory_factor=skip)  # Adjust timesteps and device as needed
