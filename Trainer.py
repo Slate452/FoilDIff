@@ -19,7 +19,8 @@ import Process_opf_data as prep  # your data loader module
 
 def Error_log(model_name, error_message):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_file = "error_log.txt"
+    os.makedirs("./logs", exist_ok=True)
+    log_file = "./logs/error_log.txt"
     
     with open(log_file, 'a') as f:
         f.write(f"[{timestamp}] Error in model: {model_name}\n")

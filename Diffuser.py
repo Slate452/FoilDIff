@@ -76,12 +76,6 @@ class Diffuser():
         x_t_pre = coef1*x_0_pred + x_t_dir  #+ sig*torch.randn_like(x_t)
         return  x_t_pre, x_0_pred
 
-    def show_paras(self):
-        plt.plot(self.betas[:,0,0,0].cpu(),label=r'$\beta$')
-        plt.plot(self.alphas_bar[:,0,0,0].cpu(),label=r'$\bar{\alpha}$')
-        plt.legend()
-        plt.xlabel('$t$')
-        plt.show()
         
     def change_device(self, device):
         self.device = device
@@ -110,26 +104,16 @@ class LinearDiffuser(Diffuser):
 
     def __init__(self, steps, beta_min, beta_max, device):
         super().__init__(steps, device)
-        self.name = "LinearParamsDiffuser"
+        self.name = "LinearDiffuser"
         self.beta_source = torch.linspace(
             0, 1, self.steps)*(beta_max-beta_min)+beta_min
-        self.generate_parameters_from_beta()
-
-
-class sigmoidDiffuser(Diffuser):
-
-    def __init__(self, steps, beta_min, beta_max, device):
-        super().__init__(steps, device)
-        self.name = "sigParamsDiffuser"
-        self.beta_source = torch.sigmoid(
-            torch.linspace(-6, 6, self.steps))*(beta_max-beta_min)+beta_min
         self.generate_parameters_from_beta()
 
 class CosSchDiffuser(Diffuser):
 
     def __init__(self, steps, device):
         super().__init__(steps, device)
-        self.name = "Cos2ParamsDiffuser"
+        self.name = "CosSchDiffuser"
         s = 0.008
         tlist = torch.arange(1, self.steps+1, 1)
         temp1 = torch.cos((tlist/self.steps+s)/(1+s)*np.pi/2)
