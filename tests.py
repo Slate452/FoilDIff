@@ -46,7 +46,7 @@ def test_Transformer():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Initialize model with 3 input channels
-    model = Transformer.Transformer_L_8(input_size = image_size, in_channels=in_channels, learn_sigma = False).to(device)
+    model = backbone.DiT()
     model.eval()
 
     # Create dummy RGB input
@@ -213,9 +213,9 @@ def test_sample(device = device):
 
 '''
 
-#test_unet()
-#test_Transformer()
-#test_unet_with_dit()
-#test_UDiT()
+test_unet()
+test_Transformer()
+test_unet_with_dit()
+test_UDiT()
 test_unet_with_uvit()
 #sample_diffusion()

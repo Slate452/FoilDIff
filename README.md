@@ -7,8 +7,6 @@
 - [Overview](#overview)
 - [Backbone Architectures](#backbone-architectures)
 - [Key Features](#key-features)
-- [Installation](#installation)
-- [Usage](#usage)
 - [Project Structure](#project-structure)
 - [License](#license)
 
@@ -56,7 +54,7 @@ All backbones are modular and can be swapped by modifying the configuration or c
 
 ---
 
-## File Structure
+## Project Structure
     FoilDiff/
     ├── backbone.py             # Entry points for each denoising backbone
     ├── Diffuser.py             # Forward and reverse diffusion logic
@@ -69,4 +67,5 @@ All backbones are modular and can be swapped by modifying the configuration or c
     ├── tests.py                # Backbone and sampler tests
 
 
+## License
 

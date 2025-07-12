@@ -1,0 +1,30 @@
+Number of parameters: 118644419
+Testing complete.  Output shape: torch.Size([1, 3, 128, 128])
+
+Model: Transformer
+Input shape: torch.Size([1, 3, 128, 128])
+Timestep shape: torch.Size([1])
+Label shape: torch.Size([1, 3, 128, 128])
+Number of parameters: 130417344
+Output shape: torch.Size([1, 3, 128, 128])
+
+Model: UNetWithTransformer
+Input shape: torch.Size([1, 3, 128, 128])
+Timestep shape: torch.Size([1])
+Condition shape: torch.Size([1, 3, 128, 128])
+Number of parameters: 260834499
+Output shape: torch.Size([1, 3, 128, 128])
+
+Model: UViT
+Input shape: torch.Size([1, 3, 128, 128])
+Timestep shape: torch.Size([1])
+Label shape: torch.Size([1, 3, 128, 128])
+Number of parameters: 288422448
+Output shape: torch.Size([1, 3, 128, 128])
+
+Model: UNetwithUViT
+Input shape: torch.Size([1, 3, 128, 128])
+Timestep shape: torch.Size([1])
+Condition shape: torch.Size([1, 3, 128, 128])
+Number of parameters: 308250435
+Output shape: torch.Size([1, 3, 128, 128])

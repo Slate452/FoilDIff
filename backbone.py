@@ -113,7 +113,7 @@ class Bottleneck(nn.Module):
         super().__init__()
         self.conv = ConvBlock(in_channels, out_channels)
         b_neck= nn.ModuleList()
-        for x in range(4):
+        for x in range(3):
             b_neck.append(ConvBlock(out_channels, out_channels))
             b_neck.append(TransformerEncoderSA(out_channels))
             x += 1
@@ -206,7 +206,7 @@ class UNetWithTransformer(UNetWithAttention):
         self.dit_channels = self.base_channels * 2 ** (self.depth - 1)  # match last encoder channel
         self.dit_patch_size = 2
         self.image_size = size  # set dynamically if needed
-        self.dit = Transformer.Transformer_L_4(
+        self.dit = Transformer.Transformer_B_4(
             input_size=self.image_size // (2 ** self.depth),  # match spatial resolution after encoding
             in_channels=self.dit_channels,
             learn_sigma=False
@@ -245,14 +245,14 @@ class UNetWithTransformer(UNetWithAttention):
 
 class UViT(Transformer.Transformer):
     def __init__(self,
-                input_size=32,
+                input_size=128,
                 patch_size=4,
                 in_channels=3,
-                hidden_size=1024,
-                depth=16,
-                num_heads=16,
+                hidden_size=768,
+                depth=12,
+                num_heads=12,
                 mlp_ratio=4.0,
-                learn_sigma=True,
+                learn_sigma=False,
                 conditioning_channels=3, 
                 mids = 1):
         super().__init__(input_size=input_size,
@@ -318,7 +318,7 @@ class UNetwithUViT(UNetWithAttention):
             input_size=self.image_size // (2 ** self.depth),  # match spatial resolution after encoding
             in_channels=self.dit_channels,
             learn_sigma=False,
-            mids = 10
+            mids = 1
         )
         self.dit_proj_in = nn.Conv2d(self.dit_channels, self.dit.in_channels, kernel_size=1)
         self.dit_proj_out = nn.Conv2d(self.dit.out_channels, self.dit_channels, kernel_size=1)
@@ -357,10 +357,10 @@ class UNetwithUViT(UNetWithAttention):
 #################################################################################
 
 def UNET(**kwargs):
-    return UNetWithAttention(time_dim=256, depth= 5,**kwargs)
+    return UNetWithAttention(time_dim=256, depth= 4,**kwargs)
 
 def DiT(**kwargs):
-    return Transformer.Transformer_L_8(input_size=128,in_channels=3, learn_sigma = False,**kwargs)
+    return Transformer.Transformer_B_8(input_size=128,in_channels=3, learn_sigma = False,**kwargs)
 
 def Flex(**kwargs):
     return UNetWithTransformer(time_dim=256, size=128, depth=4, **kwargs)
@@ -369,4 +369,4 @@ def UDiT(**kwargs):
     return UViT(input_size=128,in_channels=3, conditioning_channels=3, **kwargs)
 
 def UTFLEX(**kwargs):
-    return UNetwithUViT(time_dim=256, size=128, depth=4, **kwargs)
+    return UNetwithUViT(time_dim=256, size=128, depth=2, **kwargs)
