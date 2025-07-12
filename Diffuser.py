@@ -23,7 +23,18 @@ class Diffuser():
     def forward_diffusion(self, x0, t, noise):
         xt = self.sqrt_alphas_bar[t]*x0 + self.sqrt_one_minus_alphas_bar[t]*noise
         return xt
-    def sample_from_noise(self, model, condition, show_progress=True, ddim=False, skip_steps= 2):
+    
+    def calculate_velocity(self, x0, t, noise):
+        """
+        This needs some work
+            1. Betas not preped for this yet
+            2. Wrong formula 
+        """
+        velocity = self.alphas_bar[t]*noise -self.one_minus_alphas_bar[t]*x0
+
+        return velocity
+
+    def sample_from_noise(self, model, condition, show_progress=True, ddim=False, skip_steps= 2, v_parm = False):
         with torch.no_grad():
             x_t = torch.randn_like(condition)
             t_now = torch.tensor([self.steps], device=self.device).repeat(x_t.shape[0])
@@ -44,7 +55,7 @@ class Diffuser():
                 predicted_noise = model(x_t, t_now, condition)
                 
                 if ddim:
-                    x_t, x_0 = self.DDIM_sample_step(x_t, t_now, t_pre, predicted_noise)
+                    x_t, x_0 = self.DDIM_sample_step(x_t, t_now, t_pre, predicted_noise) if v_parm ==False else self.DDIM_Velocity_sample_step(x_t, t_now, t_pre, predicted_noise)
 
                     # Handle final steps for DDIM
                     if t == p_bar[-1]:
@@ -73,6 +84,18 @@ class Diffuser():
         coef4 = self.sqrt_one_minus_alphas_bar[t_pre] #+sig_sqr)
         x_0_pred = coef3 * (x_t-coef2*noise)
         x_t_dir = (coef4*noise)
+        x_t_pre = coef1*x_0_pred + x_t_dir  #+ sig*torch.randn_like(x_t)
+        return  x_t_pre, x_0_pred
+    
+    def DDIM_Velocity_sample_step(self, x_t,t, t_pre, velocity):
+        coef1 = self.sqrt_alphas_bar[t_pre]
+        coef2 = self.sqrt_one_minus_alphas_bar[t]
+        coef3 = 1/self.sqrt_alphas_bar[t]
+        #sig = stochacity * ( torch.sqrt(self.one_minus_alphas[t_pre]/self.one_minus_alphas[t]) *  torch.sqrt(self.one_minus_alphas[t]/self.alphas[t_pre]))
+        #sig_sqr = torch.square(sig)
+        coef4 = self.sqrt_one_minus_alphas_bar[t_pre] #+sig_sqr)
+        x_0_pred = coef3 * (x_t-coef2*velocity)
+        x_t_dir = (coef4*velocity)
         x_t_pre = coef1*x_0_pred + x_t_dir  #+ sig*torch.randn_like(x_t)
         return  x_t_pre, x_0_pred
 

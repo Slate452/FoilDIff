@@ -30,7 +30,7 @@ def Error_log(model_name, error_message):
     print(f"Error logged to {log_file}")
 
 
-def Checkpoint_save(model, loss, l_epoch, save_path):
+def Checkpoint_save(model, loss, l_epoch, save_path, Parameterization = "e"):
     base_dir = os.path.dirname(save_path)
     os.makedirs(base_dir, exist_ok=True)
 
@@ -41,7 +41,7 @@ def Checkpoint_save(model, loss, l_epoch, save_path):
 
     # Save model weights
     model_name = model.__class__.__name__
-    model_dir = os.path.join(base_dir, f"{model_name}_epoch_{l_epoch}_loss_{loss:.4f}")
+    model_dir = os.path.join(base_dir, f"{model_name}_epoch_{l_epoch}_TParam_{Parameterization}_loss_{loss:.4f}")
     os.makedirs(model_dir, exist_ok=True)
 
     checkpoint_file = os.path.join(model_dir, "model.pth")
@@ -68,7 +68,7 @@ def requires_grad(model, flag=True):
 
 
 class Trainer:
-    def __init__(self, model, diffuser, data_loader, epochs=10000, lr=1e-4, ema_decay=0.9999, device="cuda", save_path=None):
+    def __init__(self, model, diffuser, data_loader, epochs=10000, lr=1e-4, ema_decay=0.9999, device="cuda", save_path=None,type = "e"):
         self.device = torch.device(device if torch.cuda.is_available() else "cpu")
         self.model = model.to(self.device)
         self.ema_model = deepcopy(model).to(self.device)
@@ -82,9 +82,9 @@ class Trainer:
         self.save_path = save_path if save_path else './checkpoints/model_checkpoint.pth'
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
         self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=epochs)
-
+        self.type = type
         self.total_steps = self.epochs * len(self.data_loader)
-        self.progress_bar = tqdm(total=self.total_steps, desc="Training", dynamic_ncols=True)
+        self.progress_bar = tqdm(total=self.total_steps, desc="Training", dynamic_ncols=True)      
 
     def train_step(self, model: torch.nn.Module, batch):
         batch = batch.to(self.device)  # shape: [B, 6, H, W]
@@ -93,11 +93,21 @@ class Trainer:
         B = batch.size(0)
         t = torch.randint(0, self.diffuser.steps, (B,), dtype=torch.long).to(self.device)
         noise = torch.randn_like(targets).to(self.device)  # shape: [B, 3, H, W]
-        xt = self.diffuser.forward_diffusion(targets, t, noise)
 
-        predicted_noise = model(xt, t, condition)
-        loss = F.mse_loss(predicted_noise, noise)
-
+        if self.type == "e":
+            noisy_xt = self.diffuser.forward_diffusion(targets, t, noise)
+            prediction = model(noisy_xt, t, condition)
+            loss = F.mse_loss(prediction, noise)
+        elif self.type == "x":
+            noisy_xt = self.diffuser.forward_diffusion(targets, t, noise)
+            prediction = model(noisy_xt, t, condition)
+            loss = F.mse_loss(prediction, targets)
+        elif self.type == "v":
+            velocty = self.diffuser.calculate_velocity(targets, t, noise)
+            prediction = model(condition, t, targets)
+            loss = F.mse_loss(prediction, velocty)
+        else:
+            raise ValueError(f"Unknown training type: {self.type}")
         del batch, condition, targets
         torch.cuda.empty_cache()
         return loss
@@ -142,11 +152,13 @@ class Trainer:
 
                 # Save checkpoint
                 if (epoch + 1) % 100 == 0:
-                    Checkpoint_save(self.model, loss_history[-1], epoch + 1, self.save_path)
+                    Checkpoint_save(self.model, loss_history[-1], epoch + 1, self.save_path,Parameterization=self.type)
 
             plt.ioff()
             plt.savefig("training_loss_curve.png")
             print("Training complete.")
+            
+            Checkpoint_save(self.model, loss_history[-1], epoch + 1, self.save_path,Parameterization=self.type)
 
             return {
                 "ema_model": self.ema_model,
