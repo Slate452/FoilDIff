@@ -65,30 +65,27 @@ def parse_row(row):
     
 
         if not os.path.exists(flow_tensor_path):
-           
             return None
-
-        if os.path.exists(flow_tensor_path):
             
-            fout_name = f"{airfoil}_{case}_Mach_{mach:.4f}_full_flow_tensor.npy"
-            fout_path = os.path.join(FULL_FLOW_DIR, fout_name)
+        fout_name = f"{airfoil}_{case}_Mach_{mach:.4f}_full_flow_tensor.npy"
+        fout_path = os.path.join(FULL_FLOW_DIR, fout_name)
 
-            if not os.path.exists(fout_path): 
-                AoA_deg = float(row[3])
-                Re = float(row[4])
-                AoA_rad = math.radians(AoA_deg)
-                Recos = Re * math.cos(AoA_rad)
-                Resin = Re * math.sin(AoA_rad)
-                tensor = np.load(flow_tensor_path)
-                mask, ux, uy, cp = tensor[0], tensor[1], tensor[2], tensor[3]
-                H, W = mask.shape
-                roi_mask = (mask == 1).astype(np.float32)
-                recos_arr = np.full((H, W), Recos, dtype=np.float32) * roi_mask
-                resin_arr = np.full((H, W), Resin, dtype=np.float32) * roi_mask
-                full_tensor = np.stack([recos_arr, resin_arr, mask, ux, uy, cp], axis=0)
-                np.save(fout_path, full_tensor)
+        if not os.path.exists(fout_path): 
+            AoA_deg = float(row[3])
+            Re = float(row[4])
+            AoA_rad = math.radians(AoA_deg)
+            Recos = Re * math.cos(AoA_rad)
+            Resin = Re * math.sin(AoA_rad)
+            tensor = np.load(flow_tensor_path)
+            mask, ux, uy, cp = tensor[0], tensor[1], tensor[2], tensor[3]
+            H, W = mask.shape
+            roi_mask = (mask == 1).astype(np.float32)
+            recos_arr = np.full((H, W), Recos, dtype=np.float32) * roi_mask
+            resin_arr = np.full((H, W), Resin, dtype=np.float32) * roi_mask
+            full_tensor = np.stack([recos_arr, resin_arr, mask, ux, uy, cp], axis=0)
+            np.save(fout_path, full_tensor)
 
-            return {
+        return {
                 "airfoil": airfoil,
                 "case": case,
                 "mach": mach,
@@ -151,22 +148,23 @@ class CompletedNumpyDatasetFromFileList(Dataset):
         return full_tensor
 
 ############################## Dataset Loader ####################################
-def get_and_load_dataset():
+def get_and_load_dataset(batch_size =None,img_size= None):
     train_df, test_df, val_df = load_or_generate_splits()
+    if batch_size is None: batch_size = BATCH_SIZE
+    if img_size is None: img_size = IMG_SIZE
 
     f_transforms = transforms.Compose([
-        transforms.Lambda(lambda t: pad_tensor_to_size(t, (IMG_SIZE, IMG_SIZE))),
-        #transforms.Lambda(lambda t: (t * 2) - 1)
-
+                                        transforms.Lambda(lambda t: F.interpolate(t.unsqueeze(0), size=(img_size, img_size), mode='bilinear', align_corners=False ).squeeze(0)),
+                                        transforms.Lambda(lambda t: torch.flip(t, dims=[1])) # Flip along height (dim=1)       
     ])
 
     train_dataset = CompletedNumpyDatasetFromFileList(train_df, transform=f_transforms)
     test_dataset = CompletedNumpyDatasetFromFileList(test_df, transform=f_transforms)
     val_dataset = CompletedNumpyDatasetFromFileList(val_df, transform=f_transforms)
 
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
-    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, drop_last=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, drop_last=False)
 
     
     print(f"train: {len(train_dataset)}, test: {len(test_dataset)}, val: {len(val_dataset)}")
