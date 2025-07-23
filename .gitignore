@@ -5,3 +5,5 @@ models/
 datasets/
 128_checkpoints/
 models2/
+.vscode/
+__pycache__/
