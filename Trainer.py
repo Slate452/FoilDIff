@@ -7,15 +7,24 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import math
 
 try:
     from IPython.display import clear_output
 except ImportError:
     def clear_output(wait=False): pass  # fallback if not in notebook
 
-import Process_opf_data as prep  # your data loader module
+import OpenFoam_pipeline as prep  # your data loader module
 # from your_model_file import UViT, Diffuser  # <-- Make sure to import your model and diffuser here
 
+
+def get_cosine_lambda(initial_lr,final_lr,epochs,warmup_epoch):
+    def cosine_lambda(idx_epoch):
+        if idx_epoch < warmup_epoch:
+            return idx_epoch / warmup_epoch
+        else:
+            return 1-(1-(math.cos((idx_epoch-warmup_epoch)/(epochs-warmup_epoch)*math.pi)+1)/2)*(1-final_lr/initial_lr)
+    return cosine_lambda
 
 def Error_log(model_name, error_message):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -68,7 +77,7 @@ def requires_grad(model, flag=True):
 
 
 class Trainer:
-    def __init__(self, model, diffuser, data_loader, epochs=10000, lr=1e-4, ema_decay=0.9999, device="cuda", save_path=None,type = "e"):
+    def __init__(self, model, diffuser, data_loader, epochs=1000, lr=1e-4, ema_decay=0.9999, device="cuda", save_path=None,type = "e"):
         self.device = torch.device(device if torch.cuda.is_available() else "cpu")
         self.model = model.to(self.device)
         self.ema_model = deepcopy(model).to(self.device)
@@ -79,9 +88,10 @@ class Trainer:
         self.epochs = epochs
         self.lr = lr
         self.ema_decay = ema_decay
-        self.save_path = save_path if save_path else './checkpoints/model_checkpoint.pth'
+        self.save_path = save_path if save_path else './checkpoints/model_checkpoint'
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.lr)
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=epochs)
+        self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer,get_cosine_lambda(initial_lr=self.lr,final_lr=1e-5,epochs=self.epochs,warmup_epoch=100))
+        #self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=epochs)
         self.type = type
         self.total_steps = self.epochs * len(self.data_loader)
         self.progress_bar = tqdm(total=self.total_steps, desc="Training", dynamic_ncols=True)      
@@ -103,9 +113,9 @@ class Trainer:
             prediction = model(noisy_xt, t, condition)
             loss = F.mse_loss(prediction, targets)
         elif self.type == "v":
-            velocty = self.diffuser.calculate_velocity(targets, t, noise)
-            prediction = model(condition, t, targets)
-            loss = F.mse_loss(prediction, velocty)
+            velocity = self.diffuser.calculate_velocity(targets, t, noise)
+            prediction = model(velocity, t, condition)
+            loss = F.mse_loss(prediction, velocity)
         else:
             raise ValueError(f"Unknown training type: {self.type}")
         del batch, condition, targets
@@ -116,7 +126,16 @@ class Trainer:
         try:
             self.model.train()
             loss_history = []
+
             plt.ion()
+            # fig, ax = plt.subplots()
+            # (line,) = ax.plot([], [], label='Training Loss')  
+
+            # ax.set_xlabel('Epoch')
+            # ax.set_ylabel('Loss')
+            # ax.set_title('Training Progress')
+            # ax.grid(True)
+            # ax.legend()
 
             for epoch in range(self.epochs):
                 epoch_loss = 0.0
@@ -140,22 +159,19 @@ class Trainer:
                 self.scheduler.step()
 
                 # Live plot
-                plt.clf()
-                plt.plot(loss_history, label='Training Loss')
-                plt.xlabel('Epoch')
-                plt.ylabel('Loss')
-                plt.title('Training Progress')
-                plt.legend()
-                plt.grid(True)
-                plt.tight_layout()
-                plt.pause(0.01)
+                # line.set_xdata(range(len(loss_history)))
+                # line.set_ydata(loss_history)
+                # ax.relim()
+                # ax.autoscale_view()
+                # plt.draw()
+                # plt.pause(0.01)
 
                 # Save checkpoint
-                if (epoch + 1) % 100 == 0:
+                if (epoch + 1) % 500 == 0:
                     Checkpoint_save(self.model, loss_history[-1], epoch + 1, self.save_path,Parameterization=self.type)
 
-            plt.ioff()
-            plt.savefig("training_loss_curve.png")
+            #plt.ioff()
+            #plt.savefig("training_loss_curve.png")
             print("Training complete.")
             
             Checkpoint_save(self.model, loss_history[-1], epoch + 1, self.save_path,Parameterization=self.type)

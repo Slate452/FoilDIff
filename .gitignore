@@ -1,1 +1,7 @@
-
+.venv
+checkpoints/
+data/
+models/
+datasets/
+128_checkpoints/
+models2/

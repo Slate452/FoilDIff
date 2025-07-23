@@ -146,7 +146,7 @@ class UNetWithAttention(nn.Module):
             out_c = self.base_channels * (2 ** i)
             self.encoders.append(EncoderBlock(in_c, out_c))
             self.time_embeds_down.append(EmbedTime(out_c))
-            if i < self.depth - 1:  # No attention on the last downsample
+            if i < self.depth - 1:  
                 self.attns_down.append(TransformerEncoderSA(out_c))
             in_c = out_c
 
@@ -165,7 +165,7 @@ class UNetWithAttention(nn.Module):
             out_c = self.base_channels * (2 ** i)
             self.decoders.append(DecoderBlock(in_c, out_c))
             self.time_embeds_up.append(EmbedTime(out_c))
-            if i != 0:  # No attention at last decoder block
+            if i != 0:  
                 self.attns_up.append(TransformerEncoderSA(out_c))
             in_c = out_c
 
@@ -203,11 +203,11 @@ class UNetWithTransformer(UNetWithAttention):
         super().__init__(noise_steps=noise_steps, time_dim=time_dim, tran=True,depth=depth)
         
         # Set up Transformer bottleneck
-        self.dit_channels = self.base_channels * 2 ** (self.depth - 1)  # match last encoder channel
+        self.dit_channels = self.base_channels * 2 ** (self.depth - 1)  
         self.dit_patch_size = 2
-        self.image_size = size  # set dynamically if needed
-        self.dit = Transformer.Transformer_B_4(
-            input_size=self.image_size // (2 ** self.depth),  # match spatial resolution after encoding
+        self.image_size = size  
+        self.dit = Transformer.Transformer_S_2(
+            input_size=self.image_size // (2 ** self.depth), 
             in_channels=self.dit_channels,
             learn_sigma=False
         )
@@ -229,7 +229,7 @@ class UNetWithTransformer(UNetWithAttention):
 
         # Bottleneck via Transformer
         x = self.dit_proj_in(x)
-        x = self.dit(x, t=t_raw, y=c)  # y is used as the conditioning
+        x = self.dit(x, t=t_raw, y=c)  
         x = self.dit_proj_out(x)
 
         # Decoder path
@@ -249,7 +249,7 @@ class UViT(Transformer.Transformer):
                 patch_size=4,
                 in_channels=3,
                 hidden_size=768,
-                depth=12,
+                depth=8,
                 num_heads=12,
                 mlp_ratio=4.0,
                 learn_sigma=False,
@@ -311,11 +311,11 @@ class UNetwithUViT(UNetWithAttention):
         super().__init__(noise_steps=noise_steps, time_dim=time_dim, tran=True,depth=depth)
         
         # Set up Transformer bottleneck
-        self.dit_channels = self.base_channels * 2 ** (self.depth - 1)  # match last encoder channel
+        self.dit_channels = self.base_channels * 2 ** (self.depth - 1)  
         self.dit_patch_size = 2
-        self.image_size = size  # set dynamically if needed
-        self.dit = UViT(depth=12, hidden_size=768, patch_size=8, num_heads=12,
-            input_size=self.image_size // (2 ** self.depth),  # match spatial resolution after encoding
+        self.image_size = size  
+        self.dit = UViT(depth=12, hidden_size=384, patch_size=8, num_heads=12,
+            input_size=self.image_size // (2 ** self.depth),  
             in_channels=self.dit_channels,
             learn_sigma=False,
             mids = 1
@@ -328,7 +328,7 @@ class UNetwithUViT(UNetWithAttention):
         x = torch.cat([c,x], dim=1)
         skips = []
 
-        # Encoder path
+        # Encoder 
         for i, encoder in enumerate(self.encoders):
             s, x = encoder(x)
             skips.append(s)
@@ -336,12 +336,12 @@ class UNetwithUViT(UNetWithAttention):
             if i < len(self.attns_down):
                 x = self.attns_down[i](x)
 
-        # Bottleneck via Transformer
+        # Bottleneck Transformer
         x = self.dit_proj_in(x)
-        x = self.dit(x, t=t_raw, y=c)  # y is used as the conditioning
+        x = self.dit(x, t=t_raw, y=c)  
         x = self.dit_proj_out(x)
 
-        # Decoder path
+        # Decoder 
         for i, decoder in enumerate(self.decoders):
             skip = skips.pop()
             x = decoder(x, skip)
@@ -357,16 +357,16 @@ class UNetwithUViT(UNetWithAttention):
 #################################################################################
 
 def UNET(**kwargs):
-    return UNetWithAttention(time_dim=256, depth= 4,**kwargs)
+    return UNetWithAttention(time_dim=256, depth= 2,**kwargs)
 
 def DiT(**kwargs):
-    return Transformer.Transformer_B_8(input_size=128,in_channels=3, learn_sigma = False,**kwargs)
+    return Transformer.Transformer_B_2(in_channels=3, learn_sigma = False,**kwargs)
 
 def Flex(**kwargs):
-    return UNetWithTransformer(time_dim=256, size=128, depth=4, **kwargs)
+    return UNetWithTransformer(time_dim=256, depth=2, **kwargs)
 
 def UDiT(**kwargs):
-    return UViT(input_size=128,in_channels=3, conditioning_channels=3, **kwargs)
+    return UViT(in_channels=3, conditioning_channels=3, **kwargs)
 
 def UTFLEX(**kwargs):
-    return UNetwithUViT(time_dim=256, size=128, depth=2, **kwargs)
+    return UNetwithUViT(time_dim=256, depth=2, **kwargs)

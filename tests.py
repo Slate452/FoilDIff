@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
-import Process_opf_data as prep
-from Process_opf_data import IMG_SIZE, BATCH_SIZE
+import OpenFoam_pipeline as prep
+from OpenFoam_pipeline import IMG_SIZE, BATCH_SIZE
 import Diffuser as diff
 import Backbone as backbone
 import torch
@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from torch.optim import Adam
+import Unifoil_pipeline as unifoil
 #from Trainer import *
 import Transformer
 
@@ -28,7 +29,7 @@ epochs = 100 # Try more!
 
 def test_unet():
     noise_steps = 1000
-    model = backbone.UNET()
+    model = backbone.UNET().to(device)
     r = torch.randint(0, noise_steps, (1,), dtype=torch.long)
     noisy_x = torch.randn(1, 3, 128, 128).to(device=device)  # Example input tensor
     Condition = torch.randn(1,3,128,128).to(device)  # (1, 3, 32, 32)
@@ -46,7 +47,7 @@ def test_Transformer():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Initialize model with 3 input channels
-    model = backbone.DiT()
+    model = backbone.DiT(input_size = image_size).to(device)
     model.eval()
 
     # Create dummy RGB input
@@ -73,13 +74,13 @@ def test_unet_with_dit():
     noise_steps = 1000
    
     # Initialize model
-    model = backbone.Flex()
+    model = backbone.Flex(size = image_size).to(device)
     model.eval()
     
     # Create dummy input
     x = torch.randn(batch_size, in_channels, image_size, image_size).to(device)  # (1, 6, 32, 32)
     t = torch.randint(0, noise_steps, (batch_size,), dtype=torch.long).to(device)  # (1,)
-    c = torch.randn(1, 3, 128, 128)  # Example condition (flow parameters, e.g., 3 channels)
+    c = torch.randn(1, 3, image_size, image_size).to(device)  # Example condition (flow parameters, e.g., 3 channels)
 
     # Forward pass
     with torch.no_grad():
@@ -102,7 +103,7 @@ def test_UDiT():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Initialize model with 3 input channels
-    model = backbone.UDiT()
+    model = backbone.UDiT(input_size = image_size).to(device)
     model.eval()
 
     # Create dummy RGB input
@@ -128,13 +129,13 @@ def test_unet_with_uvit():
     noise_steps = 1000
    
     # Initialize model
-    model = backbone.UTFLEX()
+    model = backbone.UTFLEX(size = image_size).to(device)
     model.eval()
     
     # Create dummy input
     x = torch.randn(batch_size, in_channels, image_size, image_size).to(device)  # (1, 6, 32, 32)
     t = torch.randint(0, noise_steps, (batch_size,), dtype=torch.long).to(device)  # (1,)
-    c = torch.randn(1, 3, 128, 128)  # Example condition (flow parameters, e.g., 3 channels)
+    c = torch.randn(1, 3, image_size, image_size).to(device)  # Example condition (flow parameters, e.g., 3 channels)
 
     # Forward pass
     with torch.no_grad():
@@ -155,7 +156,7 @@ def sample_diffusion(technique="ddpm", timestep=300,skip = 5, plot = False):
     noise_steps = timestep
     inputs = torch.randn(batch_size, in_channels, image_size, image_size).to(device)  # (1, 3, 32, 32)
     # Initialize model
-    model = backbone.UNetWithTransformer(noise_steps=noise_steps, time_dim=256, size =image_size).to(device)
+    model = backbone.UNetWithTransformer(noise_steps=noise_steps, time_dim=256, size =image_size).to(device).to(device)
     model.eval()
 
     diffuser = diff.Diffuser(timesteps=timestep, device=device, sample_trajectory_factor=skip)  # Adjust timesteps and device as needed
@@ -166,56 +167,46 @@ def sample_diffusion(technique="ddpm", timestep=300,skip = 5, plot = False):
         prep.plot(prediction)
     return prediction
 
-'''  
-def get_single_input():
-    i = data[0].to(device)
-    Finput = i[:3, :, :]  # First 3 channels
-    #Fpred = batch[:, 3:, :, :]  # Remaining 3 channels
-    #prep.plot(i)
-    return Finput
-     
-def Train(save_path= save_path) :   
-    diffuser = diff.Diffuser(timesteps=300, device="cuda")  # Adjust timesteps and device as needed
-    trainer = Trainer(model=model, diffuser=diffuser, data_loader=data_loader, epochs=150, lr=1e-4, device=device)
-    # Start training
-    trainer.train()
-    # Save the model
-    torch.save({
-                    'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    }, save_path)      
-    print(f"Model saved to {save_path}")
-            
-
-def load_model(model_path=save_path, device=device):
-    model = unet.UNetWithAttention().to(device)  # Rebuild the model and move it to the appropriate device
-    optimizer = Adam(model.parameters(), lr=1e-4)  # Recreate the optimizer
-
-    # Load the state dictionaries
-    checkpoint = torch.load(model_path, map_location=device)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-
-    model.eval()  # Set the model to evaluation mode
-    print(f"Model loaded from {model_path}")
-    return model
 
 
 
-def test_sample(device = device):
-    Done = False
-    model, optimizer = load_model()
-    optimizer.zero_grad()
-    diff.sample_plot_image(model,device)
+def test_dataloader(batch_size=5, img_size=64, visualize=True):
+    print(f"Testing DataLoader with batch_size={batch_size}, img_size={img_size}")
+    train_loader, val_loader, test_loader = unifoil.get_and_load_dataset(batch_size=batch_size, img_size=img_size)
 
-    #smaple timestep
-    #print 1 sample ]
+    def inspect_loader(name, loader):
+        try:
+            for batch in loader:
+                print(f"{name} batch shape: {batch.shape}")
+                if visualize:
+                    first_tensor = batch[0]  # Only the first tensor in the batch
+                    print(f"Visualizing first tensor from {name} set...")
+                    #plot(first_tensor)
+                break  # Only inspect the first batch
+        except Exception as e:
+            print(f"❌ Error loading {name} batch: {e}")
 
+    inspect_loader("Train", train_loader)
+    inspect_loader("Validation", val_loader)
+    inspect_loader("Test", test_loader)
+    print("✅ DataLoader test complete.")
+
+'''     
+                Run Tests 
 '''
+#Test Models 
+#test_unet()
+#test_Transformer()
+#test_unet_with_dit()
+#test_UDiT()
+#test_unet_with_uvit()
 
-test_unet()
-test_Transformer()
-test_unet_with_dit()
-test_UDiT()
-test_unet_with_uvit()
-#sample_diffusion()
+# Test data
+
+#test_dataloader(batch_size =  1, img_size = 128, visualize = True)
+
+# Test Diffuser 
+
+# Trainer 
+
+

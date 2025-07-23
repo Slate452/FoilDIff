@@ -38,28 +38,31 @@ class Diffuser():
         with torch.no_grad():
             x_t = torch.randn_like(condition)
             t_now = torch.tensor([self.steps], device=self.device).repeat(x_t.shape[0])
-            t_pre = t_now - (skip_steps if ddim else 1)  # Default to 1 step for DDPM
-            
+            t_pre = t_now - (skip_steps if ddim else 1)  
+            ddim_bar  = range(0, self.steps, skip_steps)
+            ddpm_bar = range(self.steps)
             if show_progress:
                 if ddim:
-                    p_bar = tqdm(range(0, self.steps, skip_steps))  # Skip steps for DDIM
+                    p_bar = tqdm(ddim_bar)  
                 else:
-                    p_bar = tqdm(range(self.steps))  # Standard range for DDPM
+                    p_bar = tqdm(ddpm_bar)  
             else:
                 if ddim:
-                    p_bar = range(0, self.steps, skip_steps)
+                    p_bar = ddim_bar
                 else:
-                    p_bar = range(self.steps)
+                    p_bar = ddpm_bar
             
             for t in p_bar:
+                
                 predicted_noise = model(x_t, t_now, condition)
+                
                 
                 if ddim:
                     x_t, x_0 = self.DDIM_sample_step(x_t, t_now, t_pre, predicted_noise) if v_parm ==False else self.DDIM_Velocity_sample_step(x_t, t_now, t_pre, predicted_noise)
 
                     # Handle final steps for DDIM
-                    if t == p_bar[-1]:
-                        x_t = x_0
+                    if t == ddim_bar[-1]:
+                        return x_0 
     
                 else:
                     x_t = self.DDPM_sample_step(x_t, t_now, t_pre, predicted_noise)
@@ -88,6 +91,9 @@ class Diffuser():
         return  x_t_pre, x_0_pred
     
     def DDIM_Velocity_sample_step(self, x_t,t, t_pre, velocity):
+        '''
+                Fix the velocity modified DDIm sampling function
+        '''
         coef1 = self.sqrt_alphas_bar[t_pre]
         coef2 = self.sqrt_one_minus_alphas_bar[t]
         coef3 = 1/self.sqrt_alphas_bar[t]
@@ -123,14 +129,14 @@ class Diffuser():
         self.sqrt_one_minus_alphas_bar = torch.sqrt(self.one_minus_alphas_bar)
 
 
-class LinearDiffuser(Diffuser):
 
+class LinearDiffuser(Diffuser):
     def __init__(self, steps, beta_min, beta_max, device):
         super().__init__(steps, device)
         self.name = "LinearDiffuser"
-        self.beta_source = torch.linspace(
-            0, 1, self.steps)*(beta_max-beta_min)+beta_min
+        self.beta_source = torch.linspace(0, 1, steps) * (beta_max - beta_min) + beta_min
         self.generate_parameters_from_beta()
+
 
 class CosSchDiffuser(Diffuser):
 
